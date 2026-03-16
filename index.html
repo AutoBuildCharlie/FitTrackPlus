@@ -765,6 +765,7 @@ let apiKey = localStorage.getItem('fittrack_groq_key') || '';
 let history = [];
 let todayLog = loadTodayLog();
 let isListening = false;
+let voiceSentManually = false;
 let recognition = null;
 
 // ─────────────────────────────────────────
@@ -1079,13 +1080,19 @@ async function askClaude(userMessage) {
 
         hideTyping();
 
-        // Extract JSON block
-        const jsonMatch = fullText.match(/```json\s*([\s\S]*?)\s*```/);
+        // Extract JSON block — try code block first, then bare JSON object
         let logData = null;
-        let displayText = fullText.replace(/```json[\s\S]*?```/, '').trim();
+        let displayText = fullText;
 
-        if (jsonMatch) {
-            try { logData = JSON.parse(jsonMatch[1]); } catch (_) {}
+        const codeMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        const bareMatch = fullText.match(/(\{[\s\S]*"type"\s*:\s*"(?:workout|meal)"[\s\S]*\})/);
+        const rawJson   = codeMatch ? codeMatch[1] : bareMatch ? bareMatch[1] : null;
+
+        if (rawJson) {
+            try {
+                logData = JSON.parse(rawJson);
+                displayText = fullText.replace(/```[\s\S]*?```/, '').replace(rawJson, '').trim();
+            } catch (_) {}
         }
 
         if (displayText) addBubble('ai', displayText);
@@ -1168,7 +1175,8 @@ function initVoice() {
         document.getElementById('micBtn').classList.remove('listening');
         document.getElementById('voiceFeedback').textContent = '';
         const text = document.getElementById('textInput').value.trim();
-        if (text) send();
+        if (text && !voiceSentManually) send();
+        voiceSentManually = false;
     };
 
     recognition.onerror = () => {
@@ -1200,10 +1208,16 @@ textInput.addEventListener('input', () => {
     textInput.style.height = Math.min(textInput.scrollHeight, 110) + 'px';
 });
 textInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (isListening) { voiceSentManually = true; recognition.stop(); } send(); }
 });
 
-document.getElementById('sendBtn').addEventListener('click', send);
+document.getElementById('sendBtn').addEventListener('click', () => {
+    if (isListening) {
+        voiceSentManually = true;
+        recognition.stop();
+    }
+    send();
+});
 document.getElementById('settingsBtn').addEventListener('click', openSettings);
 
 document.getElementById('summaryBtn').addEventListener('click', () => {
