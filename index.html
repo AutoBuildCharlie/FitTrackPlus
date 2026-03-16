@@ -593,6 +593,61 @@
             box-shadow: 0 0 30px var(--orange-glow-strong);
         }
 
+        /* ── MACRO BAR ── */
+        .macro-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .macro-bar-item {
+            background: var(--bg2);
+            padding: 10px 12px 10px;
+        }
+
+        .macro-bar-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+
+        .macro-bar-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .macro-bar-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--orange);
+            text-shadow: 0 0 8px var(--orange-glow);
+        }
+
+        .macro-bar-track {
+            height: 4px;
+            background: var(--bg3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .macro-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+
+        .cal-fill     { background: linear-gradient(90deg, #FF6B00, #FF9500); box-shadow: 0 0 6px rgba(255,107,0,0.6); }
+        .protein-fill { background: linear-gradient(90deg, #00C9FF, #0080FF); box-shadow: 0 0 6px rgba(0,180,255,0.5); }
+        .carbs-fill   { background: linear-gradient(90deg, #A855F7, #7C3AED); box-shadow: 0 0 6px rgba(168,85,247,0.5); }
+        .fat-fill     { background: linear-gradient(90deg, #10B981, #059669); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+
         /* ── MOBILE: hide summary panel ── */
         @media (max-width: 600px) {
             .summary-panel { display: none !important; }
@@ -609,6 +664,46 @@
         <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
     </div>
 </header>
+
+<!-- MACRO BAR -->
+<div class="macro-bar" id="macroBar">
+    <div class="macro-bar-item">
+        <div class="macro-bar-top">
+            <span class="macro-bar-label">Calories</span>
+            <span class="macro-bar-value" id="barCalories">0</span>
+        </div>
+        <div class="macro-bar-track">
+            <div class="macro-bar-fill cal-fill" id="fillCalories"></div>
+        </div>
+    </div>
+    <div class="macro-bar-item">
+        <div class="macro-bar-top">
+            <span class="macro-bar-label">Protein</span>
+            <span class="macro-bar-value" id="barProtein">0g</span>
+        </div>
+        <div class="macro-bar-track">
+            <div class="macro-bar-fill protein-fill" id="fillProtein"></div>
+        </div>
+    </div>
+    <div class="macro-bar-item">
+        <div class="macro-bar-top">
+            <span class="macro-bar-label">Carbs</span>
+            <span class="macro-bar-value" id="barCarbs">0g</span>
+        </div>
+        <div class="macro-bar-track">
+            <div class="macro-bar-fill carbs-fill" id="fillCarbs"></div>
+        </div>
+    </div>
+    <div class="macro-bar-item">
+        <div class="macro-bar-top">
+            <span class="macro-bar-label">Fat</span>
+            <span class="macro-bar-value" id="barFat">0g</span>
+        </div>
+        <div class="macro-bar-track">
+            <div class="macro-bar-fill fat-fill" id="fillFat"></div>
+        </div>
+    </div>
+</div>
 
 <!-- MAIN -->
 <div class="main">
@@ -687,6 +782,7 @@ function loadTodayLog() {
 function saveLog() {
     localStorage.setItem(todayKey(), JSON.stringify(todayLog));
     renderSummary();
+    renderMacroBar();
 }
 
 // ─────────────────────────────────────────
@@ -801,6 +897,27 @@ function hideTyping() {
 // ─────────────────────────────────────────
 //  SUMMARY PANEL
 // ─────────────────────────────────────────
+function renderMacroBar() {
+    const tot = todayLog.meals.reduce((a, m) => ({
+        calories: a.calories + m.calories,
+        protein:  a.protein  + m.protein,
+        carbs:    a.carbs    + m.carbs,
+        fat:      a.fat      + m.fat
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    document.getElementById('barCalories').textContent = tot.calories;
+    document.getElementById('barProtein').textContent  = tot.protein + 'g';
+    document.getElementById('barCarbs').textContent    = tot.carbs + 'g';
+    document.getElementById('barFat').textContent      = tot.fat + 'g';
+
+    // Fill bars — goals: 2000 cal, 150g protein, 200g carbs, 65g fat
+    const goals = { calories: 2000, protein: 150, carbs: 200, fat: 65 };
+    document.getElementById('fillCalories').style.width = Math.min(tot.calories / goals.calories * 100, 100) + '%';
+    document.getElementById('fillProtein').style.width  = Math.min(tot.protein  / goals.protein  * 100, 100) + '%';
+    document.getElementById('fillCarbs').style.width    = Math.min(tot.carbs    / goals.carbs    * 100, 100) + '%';
+    document.getElementById('fillFat').style.width      = Math.min(tot.fat      / goals.fat      * 100, 100) + '%';
+}
+
 function renderSummary() {
     let html = '';
 
@@ -1116,6 +1233,7 @@ function addWelcome() {
 // ─────────────────────────────────────────
 initVoice();
 renderSummary();
+renderMacroBar();
 if (!apiKey) {
     openSettings();
 } else {
