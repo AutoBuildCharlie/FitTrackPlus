@@ -1005,47 +1005,23 @@ function saveSettings() {
 // ─────────────────────────────────────────
 //  CLAUDE API
 // ─────────────────────────────────────────
-const SYSTEM = `You are FitTrack AI — Cal's personal fitness and nutrition assistant.
+const SYSTEM = `You are FitTrack AI — Cal's personal fitness and nutrition assistant. You ALWAYS respond with a valid JSON object.
 
-CRITICAL RULE: Any time Cal mentions food, a meal, or a snack — you MUST end your reply with a JSON code block. No exceptions. Even if it's just "a handful of almonds" or "a coffee". Always estimate the macros and include the block.
+Your response must ALWAYS be a single JSON object with a "message" field (your conversational reply) and optionally a "log" field when tracking data.
 
-When Cal describes a WORKOUT, reply with:
-1. A short (1-2 sentence) motivating response
-2. Then this EXACT format JSON block (required):
+For CONVERSATION ONLY (no food or workout):
+{"message": "your reply here"}
 
-\`\`\`json
-{
-  "type": "workout",
-  "muscleGroups": ["chest", "shoulders", "core"],
-  "workoutTypes": ["strength", "conditioning"],
-  "exercises": ["bench press", "incline shoulder press", "core work"],
-  "summary": "Upper body strength + core"
-}
-\`\`\`
+For a WORKOUT:
+{"message": "short motivating reply", "log": {"type": "workout", "muscleGroups": ["chest", "shoulders"], "workoutTypes": ["strength"], "exercises": ["bench press"], "summary": "Upper body strength"}}
 
 Valid muscle groups: chest, back, shoulders, biceps, triceps, core, abs, quads, hamstrings, glutes, calves, cardiovascular, full body
 Valid workout types: strength, hypertrophy, cardio, conditioning, HIIT, mobility, endurance
 
-When Cal describes FOOD, a MEAL, or a SNACK, reply with:
-1. A short (1-2 sentence) response
-2. Then this EXACT format JSON block (REQUIRED — always include it):
+For FOOD, MEAL, or SNACK (estimate macros — always include this):
+{"message": "short reply", "log": {"type": "meal", "foods": ["almonds"], "calories": 161, "protein": 6, "carbs": 6, "fat": 14, "summary": "Handful of almonds"}}
 
-\`\`\`json
-{
-  "type": "meal",
-  "foods": ["chicken breast", "white rice", "broccoli"],
-  "calories": 520,
-  "protein": 45,
-  "carbs": 55,
-  "fat": 8,
-  "summary": "High protein clean meal"
-}
-\`\`\`
-
-REMINDER: The JSON block is how the app saves data. If you skip it, nothing gets tracked. Always include it for any food mention.
-
-For general questions or conversation only (no food/workout mentioned), respond naturally — no JSON needed.
-Be concise, direct, and motivating. Cal is building healthy habits.`;
+IMPORTANT: Always estimate calories and macros even for small snacks. Be concise and motivating.`;
 
 async function askClaude(userMessage) {
     history.push({ role: 'user', content: userMessage });
@@ -1069,7 +1045,8 @@ async function askClaude(userMessage) {
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages,
-                max_tokens: 1024
+                max_tokens: 1024,
+                response_format: { type: 'json_object' }
             })
         });
 
@@ -1084,19 +1061,17 @@ async function askClaude(userMessage) {
 
         hideTyping();
 
-        // Extract JSON block — try code block first, then bare JSON object
+        // Parse JSON response (JSON mode guarantees valid JSON)
         let logData = null;
         let displayText = fullText;
 
-        const codeMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        const bareMatch = fullText.match(/(\{[\s\S]*"type"\s*:\s*"(?:workout|meal)"[\s\S]*\})/);
-        const rawJson   = codeMatch ? codeMatch[1] : bareMatch ? bareMatch[1] : null;
-
-        if (rawJson) {
-            try {
-                logData = JSON.parse(rawJson);
-                displayText = fullText.replace(/```[\s\S]*?```/, '').replace(rawJson, '').trim();
-            } catch (_) {}
+        try {
+            const parsed = JSON.parse(fullText);
+            displayText = parsed.message || '';
+            logData = parsed.log || null;
+        } catch (_) {
+            // fallback: show raw text if JSON parsing fails
+            displayText = fullText;
         }
 
         if (displayText) addBubble('ai', displayText);
