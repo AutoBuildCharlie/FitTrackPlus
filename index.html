@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>FitTrack AI</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -730,6 +731,7 @@
             <div class="input-row">
                 <button class="mic-btn" id="micBtn" title="Voice input">🎤</button>
                 <button class="mic-btn" id="cameraBtn" title="Scan nutrition label">📷</button>
+                <button class="mic-btn" id="barcodeBtn" title="Scan barcode">🔍</button>
                 <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
                 <textarea class="text-input" id="textInput" placeholder="What did you do today?" rows="1"></textarea>
                 <button class="send-btn" id="sendBtn">&#10148;</button>
@@ -781,6 +783,19 @@
             </div>
         </div>
         <button class="modal-btn" onclick="saveGrub()">✅ Done</button>
+    </div>
+</div>
+
+<!-- BARCODE SCANNER OVERLAY -->
+<div class="overlay" id="barcodeOverlay" style="z-index:1000;">
+    <div class="modal" style="max-width:400px;width:92%;padding:20px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="modal-title" style="margin-bottom:0;">🔍 Scan Barcode</div>
+            <button id="closeBarcodeBtn" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;text-align:center;">Point your camera at a product barcode</div>
+        <div id="barcode-reader" style="width:100%;border-radius:10px;overflow:hidden;"></div>
+        <div id="barcodeStatus" style="margin-top:10px;font-size:13px;color:var(--text-dim);text-align:center;"></div>
     </div>
 </div>
 
@@ -1178,6 +1193,88 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     };
     reader.readAsDataURL(file);
 });
+
+// ─────────────────────────────────────────
+//  BARCODE SCANNER
+// ─────────────────────────────────────────
+let barcodeScanner = null;
+
+async function startBarcodeScanner() {
+    document.getElementById('barcodeOverlay').classList.add('open');
+    document.getElementById('barcodeStatus').textContent = 'Starting camera...';
+
+    barcodeScanner = new Html5Qrcode('barcode-reader');
+
+    try {
+        await barcodeScanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 280, height: 120 } },
+            async (barcode) => {
+                await stopBarcodeScanner();
+                document.getElementById('barcodeStatus').textContent = `Found: ${barcode} — looking up product...`;
+                await lookupBarcode(barcode);
+            },
+            () => {}
+        );
+        document.getElementById('barcodeStatus').textContent = 'Align barcode in the frame';
+    } catch (err) {
+        document.getElementById('barcodeStatus').textContent = '❌ Camera access denied';
+    }
+}
+
+async function stopBarcodeScanner() {
+    if (barcodeScanner) {
+        try { await barcodeScanner.stop(); } catch (_) {}
+        barcodeScanner = null;
+    }
+    document.getElementById('barcodeOverlay').classList.remove('open');
+}
+
+async function lookupBarcode(barcode) {
+    addBubble('user', `🔍 Scanned barcode: ${barcode}`);
+    showTyping();
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+        const data = await res.json();
+
+        hideTyping();
+
+        if (data.status !== 1 || !data.product) {
+            addBubble('ai', "❌ Product not found in the database. Try scanning the nutrition label with 📷 instead.");
+            return;
+        }
+
+        const p = data.product;
+        const n = p.nutriments || {};
+        const name = p.product_name || p.brands || 'Unknown Product';
+        const serving = p.serving_size || '100g';
+
+        const logData = {
+            summary:  name,
+            calories: Math.round(n['energy-kcal_serving'] || n['energy-kcal_100g'] || 0),
+            protein:  Math.round(n['proteins_serving']    || n['proteins_100g']    || 0),
+            carbs:    Math.round(n['carbohydrates_serving']|| n['carbohydrates_100g']|| 0),
+            fat:      Math.round(n['fat_serving']          || n['fat_100g']          || 0)
+        };
+
+        addBubble('ai', `Found **${name}** (per ${serving}) — ${logData.calories} cal, ${logData.protein}g protein, ${logData.carbs}g carbs, ${logData.fat}g fat. Logged!`);
+        addMealCard(logData);
+        todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        saveLog();
+        renderMacroBar();
+
+    } catch (err) {
+        hideTyping();
+        addBubble('ai', `❌ Lookup failed: ${err.message}`);
+    } finally {
+        document.getElementById('sendBtn').disabled = false;
+    }
+}
+
+document.getElementById('barcodeBtn').addEventListener('click', startBarcodeScanner);
+document.getElementById('closeBarcodeBtn').addEventListener('click', stopBarcodeScanner);
 
 // ─────────────────────────────────────────
 //  ADD GRUB
