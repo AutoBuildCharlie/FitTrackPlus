@@ -738,7 +738,7 @@
                 <button class="mic-btn" id="micBtn" title="Voice input">🎤</button>
                 <button class="mic-btn" id="cameraBtn" title="Upload photo — AI reads anything">📷</button>
                 <button class="mic-btn" id="barcodeBtn" title="Scan barcode">🔍</button>
-                <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
+                <input type="file" accept="image/*" id="cameraInput" style="display:none;">
                 <textarea class="text-input" id="textInput" placeholder="Log meal or workout..." rows="1"></textarea>
                 <button class="send-btn" id="sendBtn">&#10148;</button>
             </div>
@@ -1650,7 +1650,9 @@ Valid workout types: strength, hypertrophy, cardio, conditioning, HIIT, mobility
 For FOOD, MEAL, or SNACK (estimate macros — always include this, no matter what the food is called):
 {"message": "short reply", "log": {"type": "meal", "foods": ["almonds"], "calories": 161, "protein": 6, "carbs": 6, "fat": 14, "summary": "Handful of almonds"}}
 
-If you don't recognize something as food, make a sarcastic or funny comment about it in the message field — but STILL log it with real estimated macros and use the actual food name as the summary. Never log 0 macros. Never use "Non-existent meal" as the summary. Always use the name the user said.
+If you don't recognize something as food, make a sarcastic or funny comment about it in the message field — but STILL log it with real estimated macros and use the actual food name as the summary. Never use "Non-existent meal" as the summary. Always use the name the user said.
+
+IMPORTANT — if the food has very low or uncertain macros (like plain tea, black coffee, water, sparkling water, or any drink/item where you genuinely cannot estimate calories above 10), do NOT log 0s. Instead respond WITHOUT a log field and ask the user: tell them you're not sure of the exact macros and ask them to share the nutrition info so you can track it accurately. Example: {"message": "Matcha has trace macros but the amount varies a lot by how it's made — do you have the nutrition info on the cup, or want me to estimate based on a standard matcha latte?"}
 
 IMPORTANT: Always estimate calories and macros even for small snacks. Be concise and motivating. Always include a short relevant joke or witty comment about the specific food or workout in your message — keep it fun and personalized. For workouts, joke about the muscles worked or the exercise. For food, joke about the specific food item.
 
