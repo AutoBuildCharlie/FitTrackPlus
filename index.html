@@ -1348,13 +1348,18 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
                             { type: 'text', text: 'Look at this image carefully and return ONLY valid JSON. If it is a nutrition facts label or food product, return: {"type": "nutrition", "name": "product name", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "servings": 1}. If it shows a running summary, splits chart, treadmill screen, or any fitness app run data (Strava, Garmin, Apple Watch, Nike Run, etc.) — extract the REAL numbers you can actually read in the image. Return: {"type": "run", "distance": 10.0, "duration": 95, "pace": "9:35", "caloriesBurned": 850, "summary": "10 mile run"}. distance in miles (convert km if needed), duration in total minutes, pace as MM:SS per mile string, caloriesBurned from image if shown or estimate as distance_miles x weight_lbs x 0.63 using 185 lbs default. If it shows a strength/gym workout, return: {"type": "workout", "description": "brief description"}. For anything else return: {"type": "other", "description": "describe what you see"}.' }
                         ]
                     }],
-                    response_format: { type: 'json_object' },
                     max_tokens: 512
                 })
             });
 
             const data = await res.json();
-            const parsed = JSON.parse(data.choices[0].message.content);
+            if (!data.choices || !data.choices[0]) {
+                throw new Error(data.error?.message || 'Vision API did not respond. Try a clearer photo.');
+            }
+            const raw = data.choices[0].message.content;
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('Could not read the image. Try a clearer photo.');
+            const parsed = JSON.parse(jsonMatch[0]);
             hideTyping();
 
             if (parsed.type === 'nutrition' && !parsed.error) {
