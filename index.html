@@ -890,15 +890,8 @@
 
         <!-- Strength Tab -->
         <div id="progressStrength">
-            <div style="margin-bottom:12px;">
-                <label class="field-label">Exercise</label>
-                <select id="exerciseSelect" class="field-input" onchange="renderStrengthChart()" style="width:100%;">
-                    <option value="">— Select an exercise —</option>
-                </select>
-            </div>
-            <canvas id="strengthChart" height="200" style="width:100%;display:none;"></canvas>
+            <div id="strengthPRs"></div>
             <div id="strengthEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No strength data yet. Log a workout with sets, reps, and weight.</div>
-            <div id="strengthPRs" style="margin-top:16px;"></div>
         </div>
 
         <!-- Running Tab -->
@@ -2037,7 +2030,6 @@ document.getElementById('progressOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
 });
 
-let strengthChartInstance = null;
 let runningChartInstance = null;
 
 function showProgressTab(tab) {
@@ -2069,80 +2061,57 @@ function getAllLogs() {
 }
 
 function openProgress() {
-    // Populate exercise select
-    const logs = getAllLogs();
-    const exercises = new Set();
-    logs.forEach(log => {
-        (log.workouts || []).forEach(w => {
-            if (w.exercises && w.weight && w.type !== 'run') {
-                w.exercises.forEach(e => exercises.add(e));
-            }
-        });
-    });
-    const select = document.getElementById('exerciseSelect');
-    const current = select.value;
-    select.innerHTML = '<option value="">— Select an exercise —</option>';
-    exercises.forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e;
-        opt.textContent = e.charAt(0).toUpperCase() + e.slice(1);
-        select.appendChild(opt);
-    });
-    if (current) select.value = current;
     showProgressTab('strength');
     renderStrengthChart();
 }
 
 function renderStrengthChart() {
-    const exercise = document.getElementById('exerciseSelect').value;
-    const canvas = document.getElementById('strengthChart');
-    const empty  = document.getElementById('strengthEmpty');
-    const prsDiv = document.getElementById('strengthPRs');
+    const logs    = getAllLogs();
+    const prsDiv  = document.getElementById('strengthPRs');
+    const empty   = document.getElementById('strengthEmpty');
 
-    if (!exercise) { canvas.style.display = 'none'; empty.style.display = 'block'; prsDiv.innerHTML = ''; return; }
-
-    const logs = getAllLogs();
-    const points = [];
+    // Build per-exercise data: name -> [{date, weight}]
+    const exerciseMap = {};
     logs.forEach(log => {
         (log.workouts || []).forEach(w => {
-            if (w.exercises && w.exercises.map(e=>e.toLowerCase()).includes(exercise.toLowerCase()) && w.weight) {
-                points.push({ date: log._date, weight: w.weight, sets: w.sets, reps: w.reps });
+            if (w.exercises && w.weight && w.type !== 'run') {
+                w.exercises.forEach(ex => {
+                    const key = ex.toLowerCase();
+                    if (!exerciseMap[key]) exerciseMap[key] = { name: ex, entries: [] };
+                    exerciseMap[key].entries.push({ date: log._date, weight: parseFloat(w.weight) });
+                });
             }
         });
     });
 
-    if (points.length === 0) { canvas.style.display = 'none'; empty.style.display = 'block'; prsDiv.innerHTML = ''; return; }
+    const exercises = Object.values(exerciseMap);
+    if (exercises.length === 0) {
+        prsDiv.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
 
-    canvas.style.display = 'block';
-    empty.style.display  = 'none';
-
-    if (strengthChartInstance) strengthChartInstance.destroy();
-    strengthChartInstance = new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels: points.map(p => p.date),
-            datasets: [{
-                label: exercise + ' (lbs)',
-                data: points.map(p => p.weight),
-                borderColor: '#FF6B00',
-                backgroundColor: 'rgba(255,107,0,0.1)',
-                tension: 0.3,
-                pointBackgroundColor: '#FF6B00',
-                pointRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { labels: { color: '#f0f0f0' } } },
-            scales: {
-                x: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-            }
-        }
+    empty.style.display = 'none';
+    let html = '';
+    exercises.forEach(ex => {
+        const maxWeight = Math.max(...ex.entries.map(e => e.weight));
+        const prDates = [...new Set(
+            ex.entries
+                .filter(e => e.weight === maxWeight)
+                .map(e => new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        )];
+        html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-weight:700;font-size:15px;color:var(--text);text-transform:capitalize;">${escHtml(ex.name)}</div>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">🏆 PR hit on ${prDates.join(', ')}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:24px;font-weight:800;color:var(--orange);">${maxWeight}</div>
+                <div style="font-size:11px;color:var(--text-dim);">lbs</div>
+            </div>
+        </div>`;
     });
-
-    const pr = Math.max(...points.map(p => p.weight));
-    prsDiv.innerHTML = `<div style="text-align:center;color:var(--orange);font-weight:700;">🏆 PR: ${pr} lbs</div>`;
+    prsDiv.innerHTML = html;
 }
 
 function renderRunningChart() {
