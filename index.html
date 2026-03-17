@@ -660,6 +660,7 @@
 <!-- HEADER -->
 <header class="header">
     <div class="logo">FIT<span>TRACK</span> AI</div>
+    <div id="profileDisplay" style="font-size:13px;color:var(--text-dim);text-align:center;line-height:1.3;"></div>
     <div class="header-actions">
         <button class="icon-btn" id="addGrubBtn" title="Add Food">🍽️</button>
         <button class="icon-btn" id="summaryBtn" title="Weekly View">📊</button>
@@ -1012,6 +1013,17 @@ function saveGoals() {
     };
     localStorage.setItem('fittrack_goals', JSON.stringify(goals));
     return goals;
+}
+
+function renderProfileDisplay() {
+    const p = loadProfile();
+    const el = document.getElementById('profileDisplay');
+    if (!el) return;
+    const parts = [];
+    if (p.name)   parts.push(p.name);
+    if (p.age)    parts.push(p.age + ' yrs');
+    if (p.weight) parts.push(p.weight + ' lbs');
+    el.textContent = parts.join(' · ');
 }
 
 function renderMacroBar() {
@@ -1485,6 +1497,7 @@ function saveSettings() {
         age:    document.getElementById('profileAge').value.trim(),
         weight: document.getElementById('profileWeight').value.trim()
     }));
+    renderProfileDisplay();
     document.getElementById('settingsOverlay').classList.remove('open');
     if (!document.getElementById('messages').querySelector('.message')) {
         addWelcome();
@@ -1636,6 +1649,7 @@ async function askClaude(userMessage) {
                 weight: logData.weight ?? current.weight
             };
             localStorage.setItem('fittrack_profile', JSON.stringify(updated));
+            renderProfileDisplay();
         } else if (logData?.type === 'meal') {
             addMealCard(logData);
             todayLog.meals.push({
@@ -1782,6 +1796,7 @@ function addWelcome() {
 initVoice();
 renderSummary();
 renderMacroBar();
+renderProfileDisplay();
 if (!apiKey) {
     openSettings();
 } else {
