@@ -783,6 +783,12 @@
             </div>
         </div>
         <button class="modal-btn" onclick="saveGrub()">✅ Done</button>
+
+        <!-- MY FOODS LIST -->
+        <div style="margin-top:20px;">
+            <div style="font-size:13px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">My Foods</div>
+            <div id="myFoodsList"></div>
+        </div>
     </div>
 </div>
 
@@ -1277,8 +1283,80 @@ document.getElementById('barcodeBtn').addEventListener('click', startBarcodeScan
 document.getElementById('closeBarcodeBtn').addEventListener('click', stopBarcodeScanner);
 
 // ─────────────────────────────────────────
-//  ADD GRUB
+//  ADD GRUB + FOOD LIBRARY
 // ─────────────────────────────────────────
+function loadFoodLibrary() {
+    const raw = localStorage.getItem('fittrack_foods');
+    return raw ? JSON.parse(raw) : [];
+}
+
+function saveFoodLibrary(foods) {
+    localStorage.setItem('fittrack_foods', JSON.stringify(foods));
+}
+
+function renderFoodLibrary() {
+    const foods = loadFoodLibrary();
+    const container = document.getElementById('myFoodsList');
+    if (foods.length === 0) {
+        container.innerHTML = `<div style="font-size:13px;color:var(--text-dim);">No saved foods yet — add one above.</div>`;
+        return;
+    }
+    container.innerHTML = foods.map((f, i) => `
+        <div style="background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:8px;" id="foodItem_${i}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:13px;font-weight:700;color:var(--text);">${escHtml(f.name)}</div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="logSavedFood(${i})" style="background:var(--orange);border:none;color:#000;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;">Log</button>
+                    <button onclick="editSavedFood(${i})" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:11px;padding:4px 8px;border-radius:6px;cursor:pointer;">Edit</button>
+                    <button onclick="deleteSavedFood(${i})" style="background:var(--bg2);border:1px solid #ff3333;color:#ff3333;font-size:11px;padding:4px 8px;border-radius:6px;cursor:pointer;">✕</button>
+                </div>
+            </div>
+            <div id="editForm_${i}" style="display:none;margin-top:10px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <div><label class="field-label">Protein</label><input type="number" class="field-input" id="editP_${i}" value="${f.protein}"></div>
+                    <div><label class="field-label">Carbs</label><input type="number" class="field-input" id="editC_${i}" value="${f.carbs}"></div>
+                    <div><label class="field-label">Fat</label><input type="number" class="field-input" id="editF_${i}" value="${f.fat}"></div>
+                </div>
+                <button onclick="saveEditedFood(${i})" style="width:100%;padding:8px;background:var(--orange);border:none;color:#000;font-weight:700;border-radius:8px;cursor:pointer;">Save</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${f.calories} cal · ${f.protein}g P · ${f.carbs}g C · ${f.fat}g F</div>
+        </div>`).join('');
+}
+
+function logSavedFood(i) {
+    const foods = loadFoodLibrary();
+    const f = foods[i];
+    const logData = { summary: f.name, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat };
+    addMealCard(logData);
+    todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+    saveLog();
+    renderMacroBar();
+    document.getElementById('addGrubOverlay').classList.remove('open');
+}
+
+function editSavedFood(i) {
+    const form = document.getElementById(`editForm_${i}`);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveEditedFood(i) {
+    const foods = loadFoodLibrary();
+    const protein  = parseFloat(document.getElementById(`editP_${i}`).value) || 0;
+    const carbs    = parseFloat(document.getElementById(`editC_${i}`).value) || 0;
+    const fat      = parseFloat(document.getElementById(`editF_${i}`).value) || 0;
+    const calories = Math.round(protein * 4 + carbs * 4 + fat * 9);
+    foods[i] = { ...foods[i], protein, carbs, fat, calories };
+    saveFoodLibrary(foods);
+    renderFoodLibrary();
+}
+
+function deleteSavedFood(i) {
+    const foods = loadFoodLibrary();
+    foods.splice(i, 1);
+    saveFoodLibrary(foods);
+    renderFoodLibrary();
+}
+
 function saveGrub() {
     const name    = document.getElementById('grubName').value.trim();
     const protein = parseFloat(document.getElementById('grubProtein').value) || 0;
@@ -1290,6 +1368,14 @@ function saveGrub() {
     const calories = Math.round(protein * 4 + carbs * 4 + fat * 9);
     const logData = { summary: name, calories, protein, carbs, fat };
 
+    // Save to food library
+    const foods = loadFoodLibrary();
+    if (!foods.find(f => f.name.toLowerCase() === name.toLowerCase())) {
+        foods.unshift({ name, calories, protein, carbs, fat });
+        saveFoodLibrary(foods);
+    }
+
+    // Log to today
     addMealCard(logData);
     todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
     saveLog();
@@ -1304,6 +1390,7 @@ function saveGrub() {
 }
 
 document.getElementById('addGrubBtn').addEventListener('click', () => {
+    renderFoodLibrary();
     document.getElementById('addGrubOverlay').classList.add('open');
 });
 
