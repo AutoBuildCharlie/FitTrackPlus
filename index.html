@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>FitTrack AI</title>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -666,7 +667,8 @@
     </div>
     <div class="header-actions">
         <button class="icon-btn" id="addGrubBtn" title="Add Food">🍽️</button>
-        <button class="icon-btn" id="summaryBtn" title="Weekly View">📊</button>
+        <button class="icon-btn" id="summaryBtn" title="Weekly View">📅</button>
+        <button class="icon-btn" id="progressBtn" title="Progress">📈</button>
         <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
     </div>
 </header>
@@ -731,10 +733,10 @@
 
         <div class="input-area">
             <div class="voice-feedback" id="voiceFeedback"></div>
-            <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:4px;display:none;" id="cameraHint">📷 Reads nutrition labels — not barcodes</div>
+            <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:4px;display:none;" id="cameraHint">📷 AI can read nutrition labels, food, workouts, receipts — anything you photograph.</div>
             <div class="input-row">
                 <button class="mic-btn" id="micBtn" title="Voice input">🎤</button>
-                <button class="mic-btn" id="cameraBtn" title="Scan nutrition label">📷</button>
+                <button class="mic-btn" id="cameraBtn" title="Upload photo — AI reads anything">📷</button>
                 <button class="mic-btn" id="barcodeBtn" title="Scan barcode">🔍</button>
                 <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
                 <textarea class="text-input" id="textInput" placeholder="Log meal or workout..." rows="1"></textarea>
@@ -932,8 +934,14 @@ function escHtml(str) {
 
 function addWorkoutCard(data) {
     removeEmptyState();
-    const muscles = data.muscleGroups.map(m => `<span class="tag">${m}</span>`).join('');
-    const types   = data.workoutTypes.map(t => `<span class="tag">${t}</span>`).join('');
+    const muscles = (data.muscleGroups || []).map(m => `<span class="tag">${m}</span>`).join('');
+    const types   = (data.workoutTypes || []).map(t => `<span class="tag">${t}</span>`).join('');
+    const setsRow = (data.sets && data.reps)
+        ? `<div class="macro-row" style="margin-top:10px;">
+            ${data.sets ? `<div class="macro-item"><div class="macro-value">${data.sets}</div><div class="macro-label">Sets</div></div>` : ''}
+            ${data.reps ? `<div class="macro-item"><div class="macro-value">${data.reps}</div><div class="macro-label">Reps</div></div>` : ''}
+            ${data.weight ? `<div class="macro-item"><div class="macro-value">${data.weight} lbs</div><div class="macro-label">Weight</div></div>` : ''}
+           </div>` : '';
     const div = document.createElement('div');
     div.className = 'message ai';
     div.innerHTML = `
@@ -945,7 +953,8 @@ function addWorkoutCard(data) {
                     <div class="log-card-sub">${escHtml(data.summary)}</div>
                 </div>
             </div>
-            <div class="tag-section">
+            ${setsRow}
+            <div class="tag-section" style="margin-top:10px;">
                 <div class="tag-section-label">Muscles Worked</div>
                 <div class="tag-row">${muscles}</div>
             </div>
@@ -988,6 +997,30 @@ function addMealCard(data) {
                     <div class="macro-value">${data.fat}g</div>
                     <div class="macro-label">Fat</div>
                 </div>
+            </div>
+        </div>`;
+    document.getElementById('messages').appendChild(div);
+    scrollBottom();
+}
+
+function addRunCard(data) {
+    removeEmptyState();
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.innerHTML = `
+        <div class="log-card">
+            <div class="log-card-header">
+                <div class="log-card-icon">🏃</div>
+                <div>
+                    <div class="log-card-title">Run Logged</div>
+                    <div class="log-card-sub">${escHtml(data.summary || 'Run')}</div>
+                </div>
+            </div>
+            <div class="macro-row">
+                ${data.distance ? `<div class="macro-item"><div class="macro-value">${data.distance}</div><div class="macro-label">Miles</div></div>` : ''}
+                ${data.duration ? `<div class="macro-item"><div class="macro-value">${data.duration}</div><div class="macro-label">Min</div></div>` : ''}
+                ${data.pace ? `<div class="macro-item"><div class="macro-value">${data.pace}</div><div class="macro-label">Pace/mi</div></div>` : ''}
+                ${data.caloriesBurned ? `<div class="macro-item"><div class="macro-value">${data.caloriesBurned}</div><div class="macro-label">Cal Burned</div></div>` : ''}
             </div>
         </div>`;
     document.getElementById('messages').appendChild(div);
@@ -1288,7 +1321,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     reader.onload = async (evt) => {
         const base64 = evt.target.result; // data:image/jpeg;base64,...
 
-        addBubble('user', '📷 Scanning nutrition label...');
+        addBubble('user', '📷 Analyzing photo...');
         showTyping();
         document.getElementById('sendBtn').disabled = true;
 
@@ -1305,7 +1338,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
                         role: 'user',
                         content: [
                             { type: 'image_url', image_url: { url: base64 } },
-                            { type: 'text', text: 'Look at this nutrition facts label. Extract the nutrition info and return ONLY a valid JSON object in this exact format: {"name": "product name or Unknown", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "servings": 1}. Use numbers only, no units. If you cannot read a nutrition label in this image, return {"error": "No nutrition label found"}.' }
+                            { type: 'text', text: 'Look at this image carefully. Determine what it shows. If it is a nutrition facts label or food product, return: {"type": "nutrition", "name": "product name", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "servings": 1}. If it shows a workout, exercise, gym activity, or running (e.g. a treadmill screen, fitness app screenshot, or person working out), return: {"type": "workout", "description": "brief description of the workout shown"}. For anything else (receipt, text, general photo), return: {"type": "other", "description": "describe what you see"}. Return ONLY valid JSON.' }
                         ]
                     }],
                     response_format: { type: 'json_object' },
@@ -1317,9 +1350,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
             const parsed = JSON.parse(data.choices[0].message.content);
             hideTyping();
 
-            if (parsed.error) {
-                addBubble('ai', "❌ I couldn't find a nutrition label in that photo. Make sure the nutrition facts panel is clearly visible. I can't read barcodes.");
-            } else {
+            if (parsed.type === 'nutrition' && !parsed.error) {
                 const logData = {
                     summary:  parsed.name || 'Scanned product',
                     calories: Math.round((parsed.calories || 0) * (parsed.servings || 1)),
@@ -1332,6 +1363,10 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
                 todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
                 saveLog();
                 renderMacroBar();
+            } else if (parsed.type === 'workout') {
+                addBubble('ai', `📷 I can see: ${parsed.description}. Tell me more about this workout and I'll log it — sets, reps, weight?`);
+            } else {
+                addBubble('ai', `📷 I see: ${parsed.description || 'something interesting'}. Want me to log anything from this?`);
             }
         } catch (err) {
             hideTyping();
@@ -1601,7 +1636,13 @@ For CONVERSATION ONLY (no food or workout):
 For a WORKOUT (include "weight" in lbs if mentioned, e.g. bench press at 185 lbs):
 {"message": "short motivating reply", "log": {"type": "workout", "muscleGroups": ["chest", "shoulders"], "workoutTypes": ["strength"], "exercises": ["bench press"], "weight": 185, "summary": "Upper body strength"}}
 
-For a RUN or cardio: estimate calories burned using the formula (MET × weight_kg × duration_hours). Running MET ≈ 9.8. Always mention the estimated calories burned in your message. Example: "Nice 30-min run! You burned roughly 320 calories — that's a solid deficit."
+For a RUN (any mention of running, jogging, miles, km):
+{"message": "short reply with pace and calories burned", "log": {"type": "run", "distance": 3.1, "duration": 28, "pace": "9:02", "caloriesBurned": 310, "summary": "3.1 mile run"}}
+distance is in miles, duration in minutes, pace as "MM:SS" per mile string, caloriesBurned calculated from weight. If they mention km convert to miles. Always calculate caloriesBurned using: distance_miles × weight_lbs × 0.63 (standard running formula). Always mention pace and calories burned in your message.
+
+For a STRENGTH workout with sets/reps/weight — include these in the log:
+{"message": "short motivating reply", "log": {"type": "workout", "muscleGroups": ["chest"], "workoutTypes": ["strength"], "exercises": ["bench press"], "sets": 3, "reps": 8, "weight": 185, "summary": "Bench press 3x8 at 185 lbs"}}
+If multiple exercises are mentioned, log the primary/heaviest one with sets/reps/weight. Always include sets, reps, weight when the user mentions them.
 
 Valid muscle groups: chest, back, shoulders, biceps, triceps, core, abs, quads, hamstrings, glutes, calves, cardiovascular, full body
 Valid workout types: strength, hypertrophy, cardio, conditioning, HIIT, mobility, endurance
@@ -1755,6 +1796,10 @@ async function askClaude(userMessage) {
                 summary:      logData.summary,
                 muscleGroups: logData.muscleGroups,
                 workoutTypes: logData.workoutTypes,
+                exercises:    logData.exercises,
+                sets:         logData.sets,
+                reps:         logData.reps,
+                weight:       logData.weight,
                 time:         new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
             saveLog();
@@ -1769,6 +1814,19 @@ async function askClaude(userMessage) {
             };
             localStorage.setItem('fittrack_profile', JSON.stringify(updated));
             renderProfileDisplay();
+        } else if (logData?.type === 'run') {
+            addRunCard(logData);
+            todayLog.workouts.push({
+                type: 'run',
+                summary:       logData.summary,
+                distance:      logData.distance,
+                duration:      logData.duration,
+                pace:          logData.pace,
+                caloriesBurned: logData.caloriesBurned,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+            saveLog();
+            renderStreak();
         } else if (logData?.type === 'meal') {
             addMealCard(logData);
             todayLog.meals.push({
@@ -1884,6 +1942,177 @@ document.getElementById('sendBtn').addEventListener('click', () => {
 });
 document.getElementById('settingsBtn').addEventListener('click', openSettings);
 
+document.getElementById('progressBtn').addEventListener('click', () => {
+    openProgress();
+    document.getElementById('progressOverlay').classList.add('open');
+});
+
+document.getElementById('progressOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+let strengthChartInstance = null;
+let runningChartInstance = null;
+
+function showProgressTab(tab) {
+    document.getElementById('progressStrength').style.display = tab === 'strength' ? 'block' : 'none';
+    document.getElementById('progressRunning').style.display  = tab === 'running'  ? 'block' : 'none';
+    document.getElementById('tabStrength').style.background   = tab === 'strength' ? 'var(--orange)' : 'transparent';
+    document.getElementById('tabStrength').style.color        = tab === 'strength' ? '#fff' : 'var(--text-dim)';
+    document.getElementById('tabStrength').style.borderColor  = tab === 'strength' ? 'var(--orange)' : 'var(--border)';
+    document.getElementById('tabRunning').style.background    = tab === 'running'  ? 'var(--orange)' : 'transparent';
+    document.getElementById('tabRunning').style.color         = tab === 'running'  ? '#fff' : 'var(--text-dim)';
+    document.getElementById('tabRunning').style.borderColor   = tab === 'running'  ? 'var(--orange)' : 'var(--border)';
+    if (tab === 'running') renderRunningChart();
+}
+
+function getAllLogs() {
+    const logs = [];
+    for (let i = 0; i < 90; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = 'fittrack_' + d.toISOString().split('T')[0];
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            const log = JSON.parse(raw);
+            log._date = d.toISOString().split('T')[0];
+            logs.push(log);
+        }
+    }
+    return logs.reverse();
+}
+
+function openProgress() {
+    // Populate exercise select
+    const logs = getAllLogs();
+    const exercises = new Set();
+    logs.forEach(log => {
+        (log.workouts || []).forEach(w => {
+            if (w.exercises && w.weight && w.type !== 'run') {
+                w.exercises.forEach(e => exercises.add(e));
+            }
+        });
+    });
+    const select = document.getElementById('exerciseSelect');
+    const current = select.value;
+    select.innerHTML = '<option value="">— Select an exercise —</option>';
+    exercises.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e;
+        opt.textContent = e.charAt(0).toUpperCase() + e.slice(1);
+        select.appendChild(opt);
+    });
+    if (current) select.value = current;
+    showProgressTab('strength');
+    renderStrengthChart();
+}
+
+function renderStrengthChart() {
+    const exercise = document.getElementById('exerciseSelect').value;
+    const canvas = document.getElementById('strengthChart');
+    const empty  = document.getElementById('strengthEmpty');
+    const prsDiv = document.getElementById('strengthPRs');
+
+    if (!exercise) { canvas.style.display = 'none'; empty.style.display = 'block'; prsDiv.innerHTML = ''; return; }
+
+    const logs = getAllLogs();
+    const points = [];
+    logs.forEach(log => {
+        (log.workouts || []).forEach(w => {
+            if (w.exercises && w.exercises.map(e=>e.toLowerCase()).includes(exercise.toLowerCase()) && w.weight) {
+                points.push({ date: log._date, weight: w.weight, sets: w.sets, reps: w.reps });
+            }
+        });
+    });
+
+    if (points.length === 0) { canvas.style.display = 'none'; empty.style.display = 'block'; prsDiv.innerHTML = ''; return; }
+
+    canvas.style.display = 'block';
+    empty.style.display  = 'none';
+
+    if (strengthChartInstance) strengthChartInstance.destroy();
+    strengthChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: points.map(p => p.date),
+            datasets: [{
+                label: exercise + ' (lbs)',
+                data: points.map(p => p.weight),
+                borderColor: '#FF6B00',
+                backgroundColor: 'rgba(255,107,0,0.1)',
+                tension: 0.3,
+                pointBackgroundColor: '#FF6B00',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#f0f0f0' } } },
+            scales: {
+                x: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    const pr = Math.max(...points.map(p => p.weight));
+    prsDiv.innerHTML = `<div style="text-align:center;color:var(--orange);font-weight:700;">🏆 PR: ${pr} lbs</div>`;
+}
+
+function renderRunningChart() {
+    const logs = getAllLogs();
+    const runs = [];
+    logs.forEach(log => {
+        (log.workouts || []).forEach(w => {
+            if (w.type === 'run' && w.distance) {
+                runs.push({ date: log._date, distance: w.distance, pace: w.pace, caloriesBurned: w.caloriesBurned });
+            }
+        });
+    });
+
+    const canvas = document.getElementById('runningChart');
+    const empty  = document.getElementById('runningEmpty');
+    const stats  = document.getElementById('runningStats');
+
+    if (runs.length === 0) { canvas.style.display = 'none'; empty.style.display = 'block'; stats.innerHTML = ''; return; }
+
+    canvas.style.display = 'block';
+    empty.style.display  = 'none';
+
+    if (runningChartInstance) runningChartInstance.destroy();
+    runningChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: runs.map(r => r.date),
+            datasets: [{
+                label: 'Miles',
+                data: runs.map(r => r.distance),
+                backgroundColor: 'rgba(255,107,0,0.7)',
+                borderColor: '#FF6B00',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#f0f0f0' } } },
+            scales: {
+                x: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    const totalMiles = runs.reduce((a, r) => a + (r.distance || 0), 0).toFixed(1);
+    const totalCal   = runs.reduce((a, r) => a + (r.caloriesBurned || 0), 0);
+    const longestRun = Math.max(...runs.map(r => r.distance || 0));
+    stats.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;margin-top:8px;">
+            <div><div style="font-size:20px;font-weight:800;color:var(--orange);">${totalMiles}</div><div style="font-size:11px;color:var(--text-dim);">Total Miles</div></div>
+            <div><div style="font-size:20px;font-weight:800;color:var(--orange);">${longestRun}</div><div style="font-size:11px;color:var(--text-dim);">Longest Run</div></div>
+            <div><div style="font-size:20px;font-weight:800;color:var(--orange);">${totalCal}</div><div style="font-size:11px;color:var(--text-dim);">Cal Burned</div></div>
+        </div>`;
+}
+
 document.getElementById('summaryBtn').addEventListener('click', () => {
     renderWeeklyView();
     document.getElementById('weeklyOverlay').classList.add('open');
@@ -1924,5 +2153,41 @@ if (!apiKey) {
     addWelcome();
 }
 </script>
+<!-- PROGRESS OVERLAY -->
+<div class="overlay" id="progressOverlay">
+    <div class="modal" style="max-width:520px;width:92%;max-height:88vh;overflow-y:auto;padding:20px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div style="font-size:18px;font-weight:800;color:var(--orange);">📈 Progress</div>
+            <button onclick="document.getElementById('progressOverlay').classList.remove('open')" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;">✕</button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+            <button onclick="showProgressTab('strength')" id="tabStrength" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--orange);background:var(--orange);color:#fff;font-weight:700;cursor:pointer;">💪 Strength</button>
+            <button onclick="showProgressTab('running')" id="tabRunning" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">🏃 Running</button>
+        </div>
+
+        <!-- Strength Tab -->
+        <div id="progressStrength">
+            <div style="margin-bottom:12px;">
+                <label class="field-label">Exercise</label>
+                <select id="exerciseSelect" class="field-input" onchange="renderStrengthChart()" style="width:100%;">
+                    <option value="">— Select an exercise —</option>
+                </select>
+            </div>
+            <canvas id="strengthChart" height="200" style="width:100%;display:none;"></canvas>
+            <div id="strengthEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No strength data yet. Log a workout with sets, reps, and weight.</div>
+            <div id="strengthPRs" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Running Tab -->
+        <div id="progressRunning" style="display:none;">
+            <canvas id="runningChart" height="200" style="width:100%;display:none;"></canvas>
+            <div id="runningEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No runs logged yet. Tell the AI about your run to get started.</div>
+            <div id="runningStats" style="margin-top:16px;"></div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
