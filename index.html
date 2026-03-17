@@ -726,8 +726,11 @@
 
         <div class="input-area">
             <div class="voice-feedback" id="voiceFeedback"></div>
+            <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:4px;display:none;" id="cameraHint">📷 Reads nutrition labels — not barcodes</div>
             <div class="input-row">
                 <button class="mic-btn" id="micBtn" title="Voice input">🎤</button>
+                <button class="mic-btn" id="cameraBtn" title="Scan nutrition label">📷</button>
+                <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
                 <textarea class="text-input" id="textInput" placeholder="What did you do today?" rows="1"></textarea>
                 <button class="send-btn" id="sendBtn">&#10148;</button>
             </div>
@@ -1100,6 +1103,81 @@ function resetAllData() {
     renderWeeklyView();
     alert('All data cleared.');
 }
+
+// ─────────────────────────────────────────
+//  CAMERA / NUTRITION SCAN
+// ─────────────────────────────────────────
+document.getElementById('cameraBtn').addEventListener('click', () => {
+    document.getElementById('cameraHint').style.display = 'block';
+    document.getElementById('cameraInput').click();
+});
+
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById('cameraHint').style.display = 'none';
+
+    // Convert image to base64
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+        const base64 = evt.target.result; // data:image/jpeg;base64,...
+
+        addBubble('user', '📷 Scanning nutrition label...');
+        showTyping();
+        document.getElementById('sendBtn').disabled = true;
+
+        try {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'image_url', image_url: { url: base64 } },
+                            { type: 'text', text: 'Look at this nutrition facts label. Extract the nutrition info and return ONLY a valid JSON object in this exact format: {"name": "product name or Unknown", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "servings": 1}. Use numbers only, no units. If you cannot read a nutrition label in this image, return {"error": "No nutrition label found"}.' }
+                        ]
+                    }],
+                    response_format: { type: 'json_object' },
+                    max_tokens: 512
+                })
+            });
+
+            const data = await res.json();
+            const parsed = JSON.parse(data.choices[0].message.content);
+            hideTyping();
+
+            if (parsed.error) {
+                addBubble('ai', "❌ I couldn't find a nutrition label in that photo. Make sure the nutrition facts panel is clearly visible. I can't read barcodes.");
+            } else {
+                const logData = {
+                    summary:  parsed.name || 'Scanned product',
+                    calories: Math.round((parsed.calories || 0) * (parsed.servings || 1)),
+                    protein:  Math.round((parsed.protein  || 0) * (parsed.servings || 1)),
+                    carbs:    Math.round((parsed.carbs    || 0) * (parsed.servings || 1)),
+                    fat:      Math.round((parsed.fat      || 0) * (parsed.servings || 1))
+                };
+                addBubble('ai', `Got it! Logged **${logData.summary}** — ${logData.calories} cal, ${logData.protein}g protein, ${logData.carbs}g carbs, ${logData.fat}g fat.`);
+                addMealCard(logData);
+                todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+                saveLog();
+                renderMacroBar();
+            }
+        } catch (err) {
+            hideTyping();
+            addBubble('ai', `❌ Scan failed: ${err.message}`);
+        } finally {
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('cameraInput').value = '';
+        }
+    };
+    reader.readAsDataURL(file);
+});
 
 // ─────────────────────────────────────────
 //  ADD GRUB
