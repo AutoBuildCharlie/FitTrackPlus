@@ -683,6 +683,7 @@
         <div class="macro-bar-track">
             <div class="macro-bar-fill cal-fill" id="fillCalories"></div>
         </div>
+        <div id="calBurnedDisplay" style="font-size:10px;color:#FF6B00;margin-top:2px;"></div>
     </div>
     <div class="macro-bar-item">
         <div class="macro-bar-top">
@@ -1160,6 +1161,13 @@ function renderMacroBar() {
     document.getElementById('fillFat').style.width      = Math.min(tot.fat      / goals.fat      * 100, 100) + '%';
 
     checkCalorieMilestone(pct);
+
+    // Update calories burned from runs (separate from food)
+    const burned = todayLog.workouts
+        .filter(w => w.type === 'run' && w.caloriesBurned)
+        .reduce((a, w) => a + (w.caloriesBurned || 0), 0);
+    const burnEl = document.getElementById('calBurnedDisplay');
+    if (burnEl) burnEl.textContent = burned > 0 ? '🔥 ' + burned + ' cal burned' : '';
 }
 
 let lastMilestonePct = 0;
@@ -1861,6 +1869,7 @@ async function askClaude(userMessage) {
             });
             saveLog();
             renderStreak();
+            renderMacroBar(); // updates the 🔥 cal burned display only — food macros unchanged
         } else if (logData?.type === 'meal') {
             addMealCard(logData);
             todayLog.meals.push({
