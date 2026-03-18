@@ -711,6 +711,15 @@
     </div>
 </div>
 
+<!-- WATER BAR -->
+<div id="waterBar" style="background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+    <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Water</span>
+    <div id="waterGlasses" style="display:flex;gap:4px;flex:1;"></div>
+    <span id="waterCount" style="font-size:12px;font-weight:700;color:#38bdf8;white-space:nowrap;">0 / 8</span>
+    <button onclick="addWater()" style="background:#38bdf8;border:none;border-radius:8px;color:#000;font-size:11px;font-weight:700;padding:4px 10px;cursor:pointer;">+ Glass</button>
+    <button onclick="resetWater()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:10px;padding:4px 8px;cursor:pointer;">Reset</button>
+</div>
+
 <!-- MAIN -->
 <div class="main">
 
@@ -905,6 +914,7 @@
         <div style="display:flex;gap:8px;margin-bottom:20px;">
             <button onclick="showProgressTab('strength')" id="tabStrength" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--orange);background:var(--orange);color:#fff;font-weight:700;cursor:pointer;">💪 Strength</button>
             <button onclick="showProgressTab('running')" id="tabRunning" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">🏃 Running</button>
+            <button onclick="showProgressTab('weight')" id="tabWeight" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">⚖️ Weight</button>
         </div>
 
         <!-- Strength Tab -->
@@ -919,6 +929,20 @@
             <canvas id="runningChart" height="200" style="width:100%;display:none;"></canvas>
             <div id="runningEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No runs logged yet. Tell the AI about your run to get started.</div>
             <div id="runningStats" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Weight Tab -->
+        <div id="progressWeight" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:13px;font-weight:700;color:var(--text-dim);">Bodyweight over time</div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="number" id="weightLogInput" placeholder="lbs" style="width:70px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);font-size:13px;outline:none;">
+                    <button onclick="logBodyweight()" style="background:var(--orange);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:6px 12px;cursor:pointer;">Log</button>
+                </div>
+            </div>
+            <canvas id="weightChart" height="200" style="width:100%;display:none;"></canvas>
+            <div id="weightEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No weigh-ins yet. Log your weight to start tracking.</div>
+            <div id="weightStats" style="margin-top:16px;"></div>
         </div>
     </div>
 </div>
@@ -1291,6 +1315,52 @@ function getStreak() {
 
 function renderStreak() {
     // Streak is shown in the welcome message, not the header
+}
+
+// ─────────────────────────────────────────
+//  WATER TRACKING
+// ─────────────────────────────────────────
+function getWaterKey() {
+    return 'fittrack_water_' + new Date().toISOString().split('T')[0];
+}
+
+function getWaterGoal() {
+    return parseInt(localStorage.getItem('fittrack_water_goal')) || 8;
+}
+
+function getWaterCount() {
+    return parseInt(localStorage.getItem(getWaterKey())) || 0;
+}
+
+function renderWater() {
+    const count  = getWaterCount();
+    const goal   = getWaterGoal();
+    const glassEl = document.getElementById('waterGlasses');
+    const countEl = document.getElementById('waterCount');
+    if (!glassEl) return;
+    glassEl.innerHTML = Array.from({ length: goal }, (_, i) =>
+        `<div onclick="setWater(${i + 1})" style="flex:1;max-width:22px;height:18px;border-radius:3px;cursor:pointer;background:${i < count ? '#38bdf8' : 'var(--bg3)'};border:1px solid ${i < count ? '#38bdf8' : 'var(--border)'};transition:background 0.2s;"></div>`
+    ).join('');
+    countEl.textContent = `${count} / ${goal}`;
+}
+
+function addWater() {
+    const count = getWaterCount();
+    const goal  = getWaterGoal();
+    if (count < goal) {
+        localStorage.setItem(getWaterKey(), count + 1);
+        renderWater();
+    }
+}
+
+function setWater(n) {
+    localStorage.setItem(getWaterKey(), n);
+    renderWater();
+}
+
+function resetWater() {
+    localStorage.setItem(getWaterKey(), 0);
+    renderWater();
 }
 
 function renderMacroBar() {
@@ -1942,6 +2012,18 @@ Only include fields that are changing. Omit "match" to target the last workout.
 UNDO — if user says "undo", "undo that", or "bring it back":
 {"message": "Done, undid that.", "log": {"type": "undo"}}
 
+BODYWEIGHT LOGGING:
+If the user tells you their current weight or says they weighed in (e.g. "I weigh 183 today", "just weighed myself — 180 lbs"):
+{"message": "Logged! Weighed in at 183 lbs today.", "log": {"type": "weight_log", "weight": 183}}
+This also updates their profile weight automatically.
+
+WATER TRACKING:
+If the user mentions drinking water, logs water intake, or asks about hydration:
+- Add glasses: {"message": "Logged!", "log": {"type": "water", "action": "add", "glasses": 1}}
+- Set exact amount: {"message": "Got it, updated your water.", "log": {"type": "water", "glasses": 4}}
+- Change daily goal: {"message": "Water goal updated to 10 glasses.", "log": {"type": "water", "goal": 10}}
+Default goal is 8 glasses. If user says "I drank 3 glasses" use set (glasses:3). If they say "I had another glass" use add (glasses:1).
+
 TRAINING PROGRAM:
 If the user describes a program they follow (or asks you to save one), collect: program name, which days they train, and for each day: the label (e.g. "Push Day"), exercises, sets, reps, starting weight, and how much to add each session (increment — typically 5 lbs for upper body, 10 lbs for lower body). Then save it:
 {"message": "Got it! Saved your program.", "log": {"type": "save_program", "program": {"name": "5/3/1", "schedule": [{"dayOfWeek": "Monday", "label": "Squat Day", "exercises": [{"name": "Squat", "sets": 5, "reps": 5, "weight": 185, "increment": 10}]}, {"dayOfWeek": "Wednesday", "label": "Bench Day", "exercises": [{"name": "Bench Press", "sets": 5, "reps": 5, "weight": 155, "increment": 5}]}]}}}
@@ -2281,6 +2363,33 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
                     }
                 }
             }
+        } else if (logData?.type === 'weight_log') {
+            if (logData.weight) {
+                const wLog   = loadWeightLog();
+                const today  = new Date().toISOString().split('T')[0];
+                const idx    = wLog.findIndex(e => e.date === today);
+                if (idx !== -1) wLog[idx].weight = logData.weight;
+                else wLog.push({ date: today, weight: logData.weight });
+                wLog.sort((a, b) => a.date.localeCompare(b.date));
+                localStorage.setItem('fittrack_weight_log', JSON.stringify(wLog));
+                const p = loadProfile();
+                p.weight = logData.weight;
+                localStorage.setItem('fittrack_profile', JSON.stringify(p));
+                renderProfileDisplay();
+            }
+        } else if (logData?.type === 'water') {
+            if (logData.glasses !== undefined) {
+                const current = getWaterCount();
+                const newCount = logData.action === 'add'
+                    ? Math.min(current + logData.glasses, getWaterGoal())
+                    : logData.glasses;
+                localStorage.setItem(getWaterKey(), newCount);
+                renderWater();
+            }
+            if (logData.goal !== undefined) {
+                localStorage.setItem('fittrack_water_goal', logData.goal);
+                renderWater();
+            }
         } else if (logData?.type === 'clear_program') {
             localStorage.removeItem('fittrack_program');
         } else if (logData?.type === 'undo') {
@@ -2350,15 +2459,112 @@ document.getElementById('progressOverlay').addEventListener('click', e => {
 let runningChartInstance = null;
 
 function showProgressTab(tab) {
-    document.getElementById('progressStrength').style.display = tab === 'strength' ? 'block' : 'none';
-    document.getElementById('progressRunning').style.display  = tab === 'running'  ? 'block' : 'none';
-    document.getElementById('tabStrength').style.background   = tab === 'strength' ? 'var(--orange)' : 'transparent';
-    document.getElementById('tabStrength').style.color        = tab === 'strength' ? '#fff' : 'var(--text-dim)';
-    document.getElementById('tabStrength').style.borderColor  = tab === 'strength' ? 'var(--orange)' : 'var(--border)';
-    document.getElementById('tabRunning').style.background    = tab === 'running'  ? 'var(--orange)' : 'transparent';
-    document.getElementById('tabRunning').style.color         = tab === 'running'  ? '#fff' : 'var(--text-dim)';
-    document.getElementById('tabRunning').style.borderColor   = tab === 'running'  ? 'var(--orange)' : 'var(--border)';
+    ['strength','running','weight'].forEach(t => {
+        document.getElementById('progress' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = tab === t ? 'block' : 'none';
+        const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        btn.style.background  = tab === t ? 'var(--orange)' : 'transparent';
+        btn.style.color       = tab === t ? '#fff' : 'var(--text-dim)';
+        btn.style.borderColor = tab === t ? 'var(--orange)' : 'var(--border)';
+    });
     if (tab === 'running') renderRunningChart();
+    if (tab === 'weight')  renderWeightChart();
+}
+
+// ─────────────────────────────────────────
+//  BODYWEIGHT CHART
+// ─────────────────────────────────────────
+let weightChartInstance = null;
+
+function loadWeightLog() {
+    const raw = localStorage.getItem('fittrack_weight_log');
+    return raw ? JSON.parse(raw) : [];
+}
+
+function logBodyweight() {
+    const input = document.getElementById('weightLogInput');
+    const w = parseFloat(input.value);
+    if (!w) return;
+    const log  = loadWeightLog();
+    const today = new Date().toISOString().split('T')[0];
+    const existing = log.findIndex(e => e.date === today);
+    if (existing !== -1) log[existing].weight = w;
+    else log.push({ date: today, weight: w });
+    log.sort((a, b) => a.date.localeCompare(b.date));
+    localStorage.setItem('fittrack_weight_log', JSON.stringify(log));
+    input.value = '';
+    renderWeightChart();
+    // Also update profile weight
+    const p = loadProfile();
+    p.weight = w;
+    localStorage.setItem('fittrack_profile', JSON.stringify(p));
+    renderProfileDisplay();
+}
+
+function renderWeightChart() {
+    const log    = loadWeightLog();
+    const canvas = document.getElementById('weightChart');
+    const empty  = document.getElementById('weightEmpty');
+    const stats  = document.getElementById('weightStats');
+    if (log.length === 0) { canvas.style.display = 'none'; empty.style.display = 'block'; stats.innerHTML = ''; return; }
+    canvas.style.display = 'block';
+    empty.style.display  = 'none';
+    if (weightChartInstance) weightChartInstance.destroy();
+    weightChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: log.map(e => e.date),
+            datasets: [{
+                label: 'Weight (lbs)',
+                data: log.map(e => e.weight),
+                borderColor: '#fb923c',
+                backgroundColor: 'rgba(251,146,60,0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#fb923c',
+                pointRadius: 4,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#888', maxTicksLimit: 6 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+    const first   = log[0].weight;
+    const latest  = log[log.length - 1].weight;
+    const change  = (latest - first).toFixed(1);
+    const sign    = change > 0 ? '+' : '';
+    const lowest  = Math.min(...log.map(e => e.weight));
+    const highest = Math.max(...log.map(e => e.weight));
+    stats.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+            <div style="background:var(--bg3);border-radius:10px;padding:10px;">
+                <div style="font-size:16px;font-weight:800;color:var(--orange);">${latest}</div>
+                <div style="font-size:10px;color:var(--text-dim);">Current (lbs)</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:10px;padding:10px;">
+                <div style="font-size:16px;font-weight:800;color:${change <= 0 ? '#34d399' : '#f87171'};">${sign}${change}</div>
+                <div style="font-size:10px;color:var(--text-dim);">Total Change</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:10px;padding:10px;">
+                <div style="font-size:16px;font-weight:800;color:#a78bfa;">${log.length}</div>
+                <div style="font-size:10px;color:var(--text-dim);">Weigh-ins</div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;text-align:center;">
+            <div style="background:var(--bg3);border-radius:10px;padding:8px;">
+                <div style="font-size:14px;font-weight:700;color:#34d399;">${lowest} lbs</div>
+                <div style="font-size:10px;color:var(--text-dim);">Lowest</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:10px;padding:8px;">
+                <div style="font-size:14px;font-weight:700;color:#f87171;">${highest} lbs</div>
+                <div style="font-size:10px;color:var(--text-dim);">Highest</div>
+            </div>
+        </div>`;
 }
 
 function getAllLogs() {
@@ -2581,6 +2787,7 @@ function addWelcome() {
 // ─────────────────────────────────────────
 renderSummary();
 renderMacroBar();
+renderWater();
 renderProfileDisplay();
 renderStreak();
 if (!apiKey) {
