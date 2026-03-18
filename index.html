@@ -1835,6 +1835,19 @@ function saveSettings() {
 // ─────────────────────────────────────────
 //  CLAUDE API
 // ─────────────────────────────────────────
+function loadAiName() {
+    return localStorage.getItem('fittrack_ai_name') || '';
+}
+
+function buildSystem() {
+    const aiName = loadAiName();
+    const nameIntro = aiName
+        ? `Your name is ${aiName}. Always refer to yourself as ${aiName} when relevant.`
+        : `You don't have a name yet. On your very first message in this conversation, ask the user: "Before we dive in — I don't have a name yet. What would you like to call me?" When they reply with a name, save it using: {"message": "Love it! You can call me [name] from now on.", "log": {"type": "ai_name", "name": "[name]"}} — then continue normally. Only ask once.`;
+    return `You are FitTrack AI — a personal fitness and nutrition assistant. ${nameIntro}
+
+You ALWAYS respond with a valid JSON object.`;}
+
 const SYSTEM = `You are FitTrack AI — Cal's personal fitness and nutrition assistant. You ALWAYS respond with a valid JSON object.
 
 Your response must ALWAYS be a single JSON object with a "message" field (your conversational reply) and optionally a "log" field when tracking data.
@@ -1973,8 +1986,13 @@ async function askClaude(userMessage) {
         }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
         const macroContext = `\n\nToday's remaining macros: ${goals.calories - todayTotals.calories} cal, ${goals.protein - todayTotals.protein}g protein, ${goals.carbs - todayTotals.carbs}g carbs, ${goals.fat - todayTotals.fat}g fat left.`;
 
+        const aiName = loadAiName();
+        const nameContext = aiName
+            ? `\n\nYour name is ${aiName}. Refer to yourself as ${aiName}.`
+            : `\n\nYou don't have a name yet. If you haven't asked the user for a name in this conversation yet, ask them: "Before we get started — what would you like to call me?" When they give you a name, save it: {"message": "Love it! You can call me [name] from now on 💪", "log": {"type": "ai_name", "name": "[name]"}}. Only ask once per conversation.`;
+
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + macroContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + macroContext + nameContext },
             ...history.map(m => ({ role: m.role, content: m.content }))
         ];
 
@@ -2194,6 +2212,10 @@ async function askClaude(userMessage) {
                     saveLog();
                     renderMacroBar();
                 }
+            }
+        } else if (logData?.type === 'ai_name') {
+            if (logData.name) {
+                localStorage.setItem('fittrack_ai_name', logData.name.trim());
             }
         } else if (logData?.type === 'undo') {
             if (undoStack.length > 0) {
@@ -2476,8 +2498,11 @@ function addWelcome() {
     const p = loadProfile();
     const nameStr = p.name ? `, ${p.name}` : '';
     const profileComplete = p.name && p.age && p.weight;
+    const aiName = loadAiName();
     if (!profileComplete) {
         addBubble('ai', `${greet}! 👋 Welcome to FitTrack AI! Before we get started, tap the ⚙️ settings icon in the top right and fill in your name, age, weight, and height. That way I can give you accurate calorie burn, BMR, and macro info.`);
+    } else if (!aiName) {
+        addBubble('ai', `${greet}${nameStr}! 💪 Before we get into it — I don't have a name yet. What would you like to call me?`);
     } else {
         addBubble('ai', `${greet}${nameStr}! 💪${streakMsg} Ready to track your day. Tell me about a workout or a meal.`);
     }
