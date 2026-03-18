@@ -1862,6 +1862,8 @@ If Cal asks to delete, clear, or reset data use:
 - Delete the whole week: {"message": "Done, week cleared.", "log": {"type": "clear", "target": "week"}}
 - Delete a specific run from a specific date: {"message": "Done, removed that run.", "log": {"type": "delete_run", "date": "YYYY-MM-DD"}}
   Use today's date if the user says "today" or doesn't specify. If a user says "delete my run from Tuesday" figure out the date from context.
+- Edit/adjust a run's distance (e.g. "remove 2 miles", "change today's run to 8 miles"): {"message": "Updated — run changed to 8 miles.", "log": {"type": "edit_run", "date": "YYYY-MM-DD", "distance": 8}}
+  Calculate the new distance yourself (e.g. if they logged 10 miles and say "remove 2", set distance to 8). Calories will be recalculated automatically — do not include caloriesBurned.
 Never pretend to delete data — only use the log action above to actually do it.
 
 If Cal asks to MODIFY, EDIT, SUBTRACT, ADD TO, or ADJUST macros of a meal already logged (e.g. "subtract 20 carbs", "reduce the fat", "change that to 800 calories") — do NOT log a new meal. Update the existing one using:
@@ -1974,7 +1976,27 @@ async function askClaude(userMessage) {
 
         if (displayText) addBubble('ai', displayText);
 
-        if (logData?.type === 'delete_run') {
+        if (logData?.type === 'edit_run') {
+            const editDate = logData.date || new Date().toISOString().split('T')[0];
+            const newDist  = parseFloat(logData.distance) || 0;
+            const editProfile = loadProfile();
+            const editWeight  = parseFloat(editProfile.weight) || 185;
+            const newCal      = Math.round(newDist * editWeight * 0.63);
+            if (editDate === new Date().toISOString().split('T')[0]) {
+                const run = todayLog.workouts.find(w => w.type === 'run');
+                if (run) { run.distance = newDist; run.caloriesBurned = newCal; run.summary = `${newDist} mile run`; }
+                saveLog();
+                renderMacroBar();
+            } else {
+                const raw = localStorage.getItem('fittrack_' + editDate);
+                if (raw) {
+                    const dayLog = JSON.parse(raw);
+                    const run = (dayLog.workouts || []).find(w => w.type === 'run');
+                    if (run) { run.distance = newDist; run.caloriesBurned = newCal; run.summary = `${newDist} mile run`; }
+                    localStorage.setItem('fittrack_' + editDate, JSON.stringify(dayLog));
+                }
+            }
+        } else if (logData?.type === 'delete_run') {
             const targetDate = logData.date || new Date().toISOString().split('T')[0];
             if (targetDate === new Date().toISOString().split('T')[0]) {
                 todayLog.workouts = todayLog.workouts.filter(w => w.type !== 'run');
