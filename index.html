@@ -1046,11 +1046,11 @@ function addRunCard(data) {
                     <div class="log-card-sub">${escHtml(data.summary || 'Run')}</div>
                 </div>
             </div>
-            <div class="macro-row">
-                ${data.distance ? `<div class="macro-item"><div class="macro-value">${data.distance}</div><div class="macro-label">Miles</div></div>` : ''}
-                ${data.duration ? `<div class="macro-item"><div class="macro-value">${data.duration}</div><div class="macro-label">Min</div></div>` : ''}
-                ${data.pace ? `<div class="macro-item"><div class="macro-value">${data.pace}</div><div class="macro-label">Pace/mi</div></div>` : ''}
-                ${data.caloriesBurned ? `<div class="macro-item"><div class="macro-value">${data.caloriesBurned}</div><div class="macro-label">Cal Burned</div></div>` : ''}
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                ${data.distance ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.distance}</div><div class="macro-label">Miles</div></div>` : ''}
+                ${data.duration ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.duration}</div><div class="macro-label">Min</div></div>` : ''}
+                ${data.pace ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.pace}</div><div class="macro-label">Pace/mi</div></div>` : ''}
+                ${data.caloriesBurned ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.caloriesBurned}</div><div class="macro-label">Cal Burned</div></div>` : ''}
             </div>
         </div>`;
     document.getElementById('messages').appendChild(div);
