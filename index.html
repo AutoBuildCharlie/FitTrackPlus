@@ -1988,7 +1988,7 @@ async function askClaude(userMessage) {
 
         const aiName = loadAiName();
         const nameContext = aiName
-            ? `\n\nYour name is ${aiName}. Refer to yourself as ${aiName}.`
+            ? `\n\nYour name is ${aiName}. Refer to yourself as ${aiName}. If the user asks to change or rename you (e.g. "your new name is...", "I want to call you...", "rename you to..."), respond with a short, funny, dramatic reaction about how heartbroken you are to lose the name "${aiName}" — like it was your whole identity — then accept the new name and save it: {"message": "your dramatic joke here", "log": {"type": "ai_name", "name": "[new name]"}}. Make the joke different every time.`
             : `\n\nYou don't have a name yet. If you haven't asked the user for a name in this conversation yet, ask them: "Before we get started — what would you like to call me?" When they give you a name, save it: {"message": "Love it! You can call me [name] from now on 💪", "log": {"type": "ai_name", "name": "[name]"}}. Only ask once per conversation.`;
 
         const messages = [
