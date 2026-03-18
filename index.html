@@ -963,6 +963,7 @@
 let apiKey = localStorage.getItem('fittrack_groq_key') || '';
 let history = [];
 let todayLog = loadTodayLog();
+let pendingMealScan = null; // holds per-serving data while waiting for serving count
 
 // ─────────────────────────────────────────
 //  DATA
@@ -1603,18 +1604,14 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
             hideTyping();
 
             if (parsed.type === 'nutrition' && !parsed.error) {
-                const logData = {
-                    summary:  parsed.name || 'Scanned product',
-                    calories: Math.round((parsed.calories || 0) * (parsed.servings || 1)),
-                    protein:  Math.round((parsed.protein  || 0) * (parsed.servings || 1)),
-                    carbs:    Math.round((parsed.carbs    || 0) * (parsed.servings || 1)),
-                    fat:      Math.round((parsed.fat      || 0) * (parsed.servings || 1))
+                pendingMealScan = {
+                    name:     parsed.name || 'Scanned product',
+                    calories: parsed.calories || 0,
+                    protein:  parsed.protein  || 0,
+                    carbs:    parsed.carbs    || 0,
+                    fat:      parsed.fat      || 0
                 };
-                addBubble('ai', `Got it! Logged **${logData.summary}** — ${logData.calories} cal, ${logData.protein}g protein, ${logData.carbs}g carbs, ${logData.fat}g fat.`);
-                addMealCard(logData);
-                todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-                saveLog();
-                renderMacroBar();
+                addBubble('ai', `Got it — **${pendingMealScan.name}** is **${pendingMealScan.calories} cal per serving** (${pendingMealScan.protein}g protein, ${pendingMealScan.carbs}g carbs, ${pendingMealScan.fat}g fat). How many servings did you have?`);
             } else if (parsed.type === 'run') {
                 const profile = loadProfile();
                 const weightLbs = parseFloat(profile.weight) || 185;
@@ -2442,6 +2439,32 @@ async function send() {
     input.value = '';
     input.style.height = 'auto';
     addBubble('user', text);
+
+    // If waiting for a serving count after a photo scan
+    if (pendingMealScan) {
+        const servings = parseFloat(text);
+        if (!isNaN(servings) && servings > 0) {
+            const meal = pendingMealScan;
+            pendingMealScan = null;
+            const logData = {
+                summary:  meal.name,
+                calories: Math.round(meal.calories * servings),
+                protein:  Math.round(meal.protein  * servings),
+                carbs:    Math.round(meal.carbs    * servings),
+                fat:      Math.round(meal.fat      * servings)
+            };
+            addBubble('ai', `Logged **${logData.summary}** × ${servings} serving${servings !== 1 ? 's' : ''} — ${logData.calories} cal, ${logData.protein}g protein, ${logData.carbs}g carbs, ${logData.fat}g fat.`);
+            addMealCard(logData);
+            todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+            saveLog();
+            renderMacroBar();
+            return;
+        } else {
+            // Not a number — cancel pending and let it go to the AI
+            pendingMealScan = null;
+        }
+    }
+
     await askClaude(text);
 }
 
