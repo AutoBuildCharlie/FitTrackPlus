@@ -2141,7 +2141,7 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages,
-                max_tokens: 1024,
+                max_tokens: 300,
                 response_format: { type: 'json_object' }
             })
         });
