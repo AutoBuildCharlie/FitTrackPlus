@@ -887,6 +887,7 @@
 
         <!-- Running Tab -->
         <div id="progressRunning" style="display:none;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">Miles before smiles</div>
             <canvas id="runningChart" height="200" style="width:100%;display:none;"></canvas>
             <div id="runningEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No runs logged yet. Tell the AI about your run to get started.</div>
             <div id="runningStats" style="margin-top:16px;"></div>
@@ -2193,7 +2194,7 @@ function renderRunningChart() {
         data: {
             labels: runs.map(r => r.date),
             datasets: [{
-                label: 'Miles',
+                label: 'Miles before smiles',
                 data: runs.map(r => r.distance),
                 borderColor: '#FF6B00',
                 backgroundColor: 'rgba(255,107,0,0.1)',
@@ -2206,7 +2207,7 @@ function renderRunningChart() {
         },
         options: {
             responsive: true,
-            plugins: { legend: { labels: { color: '#f0f0f0' } } },
+            plugins: { legend: { display: false } },
             scales: {
                 x: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } },
                 y: { ticks: { color: '#777' }, grid: { color: 'rgba(255,255,255,0.05)' } }
