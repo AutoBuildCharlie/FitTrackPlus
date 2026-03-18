@@ -1758,6 +1758,10 @@ If Cal asks to delete, clear, or reset data use:
 - Delete the whole week: {"message": "Done, week cleared.", "log": {"type": "clear", "target": "week"}}
 Never pretend to delete data — only use the log action above to actually do it.
 
+If Cal asks to MODIFY, EDIT, SUBTRACT, ADD TO, or ADJUST macros of a meal already logged (e.g. "subtract 20 carbs", "reduce the fat", "change that to 800 calories") — do NOT log a new meal. Update the existing one using:
+{"message": "short confirmation of the change", "log": {"type": "edit_meal", "calories": 920, "protein": 53, "carbs": 100, "fat": 44, "summary": "updated meal name"}}
+Only include the macro fields that are changing. This replaces the last logged meal's values without creating a duplicate.
+
 If Cal asks to update or change his name, age, weight, or max heart rate, respond with:
 {"message": "short confirmation", "log": {"type": "profile", "name": "Cal", "age": 36, "weight": 185, "hrMax": 185}}
 Only include the fields being changed. Leave out any fields not mentioned so they stay unchanged.
@@ -1941,6 +1945,17 @@ async function askClaude(userMessage) {
             });
             saveLog();
             renderStreak();
+        } else if (logData?.type === 'edit_meal') {
+            if (todayLog.meals.length > 0) {
+                const last = todayLog.meals[todayLog.meals.length - 1];
+                if (logData.calories !== undefined) last.calories = logData.calories;
+                if (logData.protein  !== undefined) last.protein  = logData.protein;
+                if (logData.carbs    !== undefined) last.carbs    = logData.carbs;
+                if (logData.fat      !== undefined) last.fat      = logData.fat;
+                if (logData.summary  !== undefined) last.summary  = logData.summary;
+                saveLog();
+                renderMacroBar();
+            }
         }
 
     } catch (err) {
