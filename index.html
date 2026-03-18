@@ -850,6 +850,10 @@
                 <input type="number" class="field-input" id="profileHeightIn" placeholder="11">
             </div>
         </div>
+        <div style="margin-bottom:16px;">
+            <label class="field-label">Max Heart Rate — bpm (optional, AI can estimate from age)</label>
+            <input type="number" class="field-input" id="profileHrMax" placeholder="e.g. 185">
+        </div>
 
         <div style="margin-top:4px;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;">Daily Goals</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
@@ -1050,7 +1054,13 @@ function addRunCard(data) {
                 ${data.distance ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.distance}</div><div class="macro-label">Miles</div></div>` : ''}
                 ${data.duration ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.duration}</div><div class="macro-label">Min</div></div>` : ''}
                 ${data.pace ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.pace}</div><div class="macro-label">Pace/mi</div></div>` : ''}
-                ${data.avgHeartRate ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.avgHeartRate}</div><div class="macro-label">Avg HR</div></div>` : ''}
+                ${data.avgHeartRate ? (() => {
+                    const hrInfo = getEffectiveHRMax(loadProfile());
+                    const zone = hrInfo ? getHRZone(data.avgHeartRate, hrInfo.value) : null;
+                    const color = zone ? zone.color : 'var(--orange)';
+                    const label = zone ? `Avg HR · ${zone.name}` : 'Avg HR';
+                    return `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value" style="color:${color};text-shadow:none;">${data.avgHeartRate}</div><div class="macro-label" style="font-size:9px;">${label}</div></div>`;
+                })() : ''}
                 ${data.caloriesBurned ? `<div class="macro-item" style="flex:1;min-width:70px;"><div class="macro-value">${data.caloriesBurned}</div><div class="macro-label">Cal Burned</div></div>` : ''}
             </div>
         </div>`;
@@ -1100,6 +1110,21 @@ function calcBMR(p) {
     const totalIn = (parseFloat(p.heightFt) || 5) * 12 + (parseFloat(p.heightIn) || 9);
     const cm = totalIn * 2.54;
     return Math.round(10 * kg + 6.25 * cm - 5 * age + 5);
+}
+
+function getHRZone(hr, hrMax) {
+    const pct = (hr / hrMax) * 100;
+    if (pct < 60) return { zone: 1, color: '#60a5fa', name: 'Zone 1 — Recovery' };
+    if (pct < 70) return { zone: 2, color: '#4ade80', name: 'Zone 2 — Fat Burn' };
+    if (pct < 80) return { zone: 3, color: '#facc15', name: 'Zone 3 — Aerobic' };
+    if (pct < 90) return { zone: 4, color: '#fb923c', name: 'Zone 4 — Threshold' };
+    return { zone: 5, color: '#f87171', name: 'Zone 5 — Max' };
+}
+
+function getEffectiveHRMax(p) {
+    if (p.hrMax) return { value: parseFloat(p.hrMax), source: 'user' };
+    if (p.age)   return { value: Math.round(220 - parseFloat(p.age)), source: 'estimated' };
+    return null;
 }
 
 function renderProfileDisplay() {
@@ -1655,7 +1680,7 @@ document.getElementById('addGrubOverlay').addEventListener('click', e => {
 // ─────────────────────────────────────────
 function loadProfile() {
     const raw = localStorage.getItem('fittrack_profile');
-    return raw ? JSON.parse(raw) : { name: '', age: '', weight: '', heightFt: '', heightIn: '' };
+    return raw ? JSON.parse(raw) : { name: '', age: '', weight: '', heightFt: '', heightIn: '', hrMax: '' };
 }
 
 function openSettings() {
@@ -1672,6 +1697,7 @@ function openSettings() {
     document.getElementById('profileWeight').value   = p.weight;
     document.getElementById('profileHeightFt').value = p.heightFt;
     document.getElementById('profileHeightIn').value = p.heightIn;
+    document.getElementById('profileHrMax').value    = p.hrMax || '';
     document.getElementById('settingsOverlay').classList.add('open');
 }
 
@@ -1687,7 +1713,8 @@ function saveSettings() {
         age:      document.getElementById('profileAge').value.trim(),
         weight:   document.getElementById('profileWeight').value.trim(),
         heightFt: document.getElementById('profileHeightFt').value.trim(),
-        heightIn: document.getElementById('profileHeightIn').value.trim()
+        heightIn: document.getElementById('profileHeightIn').value.trim(),
+        hrMax:    document.getElementById('profileHrMax').value.trim()
     }));
     renderProfileDisplay();
     document.getElementById('settingsOverlay').classList.remove('open');
@@ -1750,8 +1777,8 @@ If Cal asks to delete, clear, or reset data use:
 - Delete the whole week: {"message": "Done, week cleared.", "log": {"type": "clear", "target": "week"}}
 Never pretend to delete data — only use the log action above to actually do it.
 
-If Cal asks to update or change his name, age, or weight, respond with:
-{"message": "short confirmation", "log": {"type": "profile", "name": "Cal", "age": 36, "weight": 185}}
+If Cal asks to update or change his name, age, weight, or max heart rate, respond with:
+{"message": "short confirmation", "log": {"type": "profile", "name": "Cal", "age": 36, "weight": 185, "hrMax": 185}}
 Only include the fields being changed. Leave out any fields not mentioned so they stay unchanged.
 
 If Cal asks what to eat or what he should have for his next meal, look at his remaining calories and macros from today's context and suggest 2-3 specific foods or meals that would fit. Be practical and specific (e.g. "You have 400 calories and 40g protein left — try 2 eggs and a protein shake, or grilled chicken with rice.").
@@ -1775,6 +1802,10 @@ async function askClaude(userMessage) {
 
         const profile = loadProfile();
         const bmr = calcBMR(profile);
+        const hrMaxInfo = getEffectiveHRMax(profile);
+        const hrZoneContext = hrMaxInfo
+            ? `\n\nHEART RATE ZONES (HRmax: ${hrMaxInfo.value} bpm${hrMaxInfo.source === 'estimated' ? ` — estimated from age using 220−age; user has not confirmed actual HRmax` : ' — user provided'}):\n- Zone 1 (Recovery/blue): < ${Math.round(hrMaxInfo.value * 0.6)} bpm\n- Zone 2 (Fat Burn/green): ${Math.round(hrMaxInfo.value * 0.6)}–${Math.round(hrMaxInfo.value * 0.7)} bpm\n- Zone 3 (Aerobic/yellow): ${Math.round(hrMaxInfo.value * 0.7)}–${Math.round(hrMaxInfo.value * 0.8)} bpm\n- Zone 4 (Threshold/orange): ${Math.round(hrMaxInfo.value * 0.8)}–${Math.round(hrMaxInfo.value * 0.9)} bpm\n- Zone 5 (Max/red): ${Math.round(hrMaxInfo.value * 0.9)}+ bpm\nWhen a run includes avgHeartRate, always identify which zone it falls in and mention it in your reply. To save a user-provided HRmax: {"log": {"type": "profile", "hrMax": 185}}`
+            : `\n\nHEART RATE ZONES: HRmax not saved yet. If a run has avgHeartRate data, ask the user: "Do you know your max heart rate?" If they don't know, use the simple formula HRmax = 220 − age${profile.age ? ` = ${Math.round(220 - parseFloat(profile.age))} bpm` : ''} and save it: {"log": {"type": "profile", "hrMax": ${profile.age ? Math.round(220 - parseFloat(profile.age)) : 'VALUE'}}}. If the user tells you their real HRmax, save it the same way.`;
         const heightStr = (profile.heightFt || profile.heightIn) ? `, Height: ${profile.heightFt || 5}'${profile.heightIn || 0}"` : '';
         const profileContext = (profile.name || profile.age || profile.weight)
             ? `\n\nUSER PROFILE (never ask for any of this — it is already saved):\n- Name: ${profile.name || 'unknown'}\n- Age: ${profile.age || 'unknown'} years old\n- Weight: ${profile.weight || 'unknown'} lbs\n- Height: ${profile.heightFt || '?'}ft ${profile.heightIn || '?'}in${bmr ? '\n- BMR: ' + bmr + ' calories/day' : ''}\nAlways address them by name. Always use their weight for calorie burn. For runs: calories burned = distance_miles × ${profile.weight || 185} × 0.63. Never ask for name, age, weight, or height — you already have it.${bmr ? `\n\nBMR CALCULATIONS — use these whenever asked about calories, diet, or goals:\n- Sedentary TDEE: ${Math.round(bmr * 1.2)} cal/day\n- Lightly active TDEE: ${Math.round(bmr * 1.375)} cal/day\n- Moderately active TDEE: ${Math.round(bmr * 1.55)} cal/day\n- Very active TDEE: ${Math.round(bmr * 1.725)} cal/day\n- Weight loss target: TDEE minus 300–500 cal/day deficit\n- Muscle gain target: TDEE plus 200–300 cal/day surplus\nAlways use their BMR and TDEE to answer any question about how much to eat, calorie goals, weight loss, or muscle gain. Never use generic numbers — always calculate from their actual BMR.` : ''}`
@@ -1806,7 +1837,7 @@ async function askClaude(userMessage) {
         const macroContext = `\n\nToday's remaining macros: ${goals.calories - todayTotals.calories} cal, ${goals.protein - todayTotals.protein}g protein, ${goals.carbs - todayTotals.carbs}g carbs, ${goals.fat - todayTotals.fat}g fat left.`;
 
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + workoutContext + macroContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + macroContext },
             ...history.map(m => ({ role: m.role, content: m.content }))
         ];
 
@@ -1897,7 +1928,8 @@ async function askClaude(userMessage) {
                 age:      logData.age      ?? current.age,
                 weight:   logData.weight   ?? current.weight,
                 heightFt: logData.heightFt ?? current.heightFt,
-                heightIn: logData.heightIn ?? current.heightIn
+                heightIn: logData.heightIn ?? current.heightIn,
+                hrMax:    logData.hrMax    ?? current.hrMax
             };
             localStorage.setItem('fittrack_profile', JSON.stringify(updated));
             renderProfileDisplay();
