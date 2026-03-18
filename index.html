@@ -645,10 +645,7 @@
 <!-- HEADER -->
 <header class="header">
     <div class="logo">FIT<span>TRACK</span> AI</div>
-    <div style="text-align:center;">
-        <div id="profileDisplay" style="font-size:13px;color:var(--text-dim);line-height:1.4;"></div>
-        <div id="streakDisplay" style="font-size:12px;color:var(--orange);font-weight:700;"></div>
-    </div>
+    <div id="profileDisplay" style="font-size:13px;color:var(--text-dim);text-align:center;line-height:1.4;"></div>
     <div class="header-actions">
         <button class="icon-btn" id="addGrubBtn" title="Add Food">🍽️</button>
         <button class="icon-btn" id="summaryBtn" title="Weekly View">📅</button>
@@ -1176,16 +1173,7 @@ function getStreak() {
 }
 
 function renderStreak() {
-    const el = document.getElementById('streakDisplay');
-    if (!el) return;
-    const streak = getStreak();
-    if (streak >= 2) {
-        el.textContent = '🔥 ' + streak + ' day streak!';
-    } else if (streak === 1) {
-        el.textContent = '🔥 1 day streak — keep it going!';
-    } else {
-        el.textContent = '';
-    }
+    // Streak is shown in the welcome message, not the header
 }
 
 function renderMacroBar() {
@@ -2190,7 +2178,11 @@ document.getElementById('settingsOverlay').addEventListener('click', e => {
 function addWelcome() {
     const h = new Date().getHours();
     const greet = h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
-    addBubble('ai', `${greet}, Cal! 💪 Ready to track your day. Tell me about a workout or a meal.`);
+    const streak = getStreak();
+    const streakMsg = streak >= 1 ? ` 🔥 ${streak} day streak — keep it going!` : '';
+    const p = loadProfile();
+    const name = p.name ? `, ${p.name}` : '';
+    addBubble('ai', `${greet}${name}! 💪${streakMsg} Ready to track your day. Tell me about a workout or a meal.`);
 }
 
 // ─────────────────────────────────────────
