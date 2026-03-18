@@ -2032,6 +2032,10 @@ async function askClaude(userMessage) {
             localStorage.setItem('fittrack_profile', JSON.stringify(updated));
             renderProfileDisplay();
         } else if (logData?.type === 'run') {
+            const runProfile = loadProfile();
+            const runWeight = parseFloat(runProfile.weight) || 185;
+            const runCal = Math.round((logData.distance || 0) * runWeight * 0.63);
+            logData.caloriesBurned = runCal;
             addRunCard(logData);
             todayLog.workouts.push({
                 type: 'run',
@@ -2040,7 +2044,7 @@ async function askClaude(userMessage) {
                 duration:       logData.duration,
                 pace:           logData.pace,
                 avgHeartRate:   logData.avgHeartRate,
-                caloriesBurned: logData.caloriesBurned,
+                caloriesBurned: runCal,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
             saveLog();
