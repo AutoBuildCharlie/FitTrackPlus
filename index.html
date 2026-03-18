@@ -1820,7 +1820,9 @@ Only include the fields being changed. Leave out any fields not mentioned so the
 
 If Cal asks what to eat or what he should have for his next meal, look at his remaining calories and macros from today's context and suggest 2-3 specific foods or meals that would fit. Be practical and specific (e.g. "You have 400 calories and 40g protein left — try 2 eggs and a protein shake, or grilled chicken with rice.").
 
-If Cal asks what he should train today or what workout to do, look at the muscle groups he's already hit this week and suggest what's been neglected. Be specific (e.g. "You hit chest and shoulders yesterday — today's a good day for legs or back. Try squats and Romanian deadlifts.").`;
+If Cal asks what he should train today or what workout to do, look at the muscle groups he's already hit this week and suggest what's been neglected. Be specific (e.g. "You hit chest and shoulders yesterday — today's a good day for legs or back. Try squats and Romanian deadlifts.").
+
+If the user asks about exercise form, technique, or wants to learn how to do a movement — explain it clearly in plain language, then recommend a YouTube search using a trusted creator. Format it as: "To see it in action, search YouTube for '[creator] [exercise]'." Trusted creators: Jeff Nippard (science-based strength), Athlean-X (form and injury prevention), Alan Thrall (powerlifting), Pamela Reif (bodyweight/cardio). Never generate an actual URL — always recommend a search term only.`;
 
 
 async function askClaude(userMessage) {
