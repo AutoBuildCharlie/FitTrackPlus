@@ -2166,6 +2166,35 @@ async function askClaude(userMessage) {
             ? `\n\nMuscle groups trained this week: ${[...new Set(recentMuscles)].join(', ')}.`
             : '';
 
+        // PRs
+        const prs = loadPRs();
+        const prContext = Object.keys(prs).length > 0
+            ? `\n\nPERSONAL RECORDS (all-time best weights):\n${Object.entries(prs).map(([ex, w]) => `- ${ex}: ${w} lbs`).join('\n')}`
+            : '';
+
+        // Bodyweight log (last 10 entries)
+        const weightLog = loadWeightLog();
+        const weightContext = weightLog.length > 0
+            ? `\n\nBODYWEIGHT LOG (most recent first):\n${[...weightLog].reverse().slice(0,10).map(e => `- ${e.date}: ${e.weight} lbs`).join('\n')}\nStarting weight: ${weightLog[0].weight} lbs (${weightLog[0].date}). Current weight: ${weightLog[weightLog.length-1].weight} lbs.`
+            : '';
+
+        // Run history (all weeks — scan localStorage for runs)
+        const allRuns = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith('fittrack_2')) continue;
+            try {
+                const d = JSON.parse(localStorage.getItem(k));
+                (d.workouts||[]).forEach(w => {
+                    if (w.type === 'run' && w.distance) allRuns.push({ date: k.replace('fittrack_',''), distance: w.distance, duration: w.duration, pace: w.pace, calories: w.caloriesBurned });
+                });
+            } catch(_) {}
+        }
+        allRuns.sort((a,b) => b.date.localeCompare(a.date));
+        const runContext = allRuns.length > 0
+            ? `\n\nRUN HISTORY (most recent first, up to 10):\n${allRuns.slice(0,10).map(r => `- ${r.date}: ${r.distance} miles${r.duration ? ' in '+r.duration+'min' : ''}${r.pace ? ' @ '+r.pace+'/mi' : ''}${r.calories ? ', '+r.calories+' cal burned' : ''}`).join('\n')}\nBest run: ${allRuns.reduce((b,r) => r.distance > b.distance ? r : b, allRuns[0]).distance} miles on ${allRuns.reduce((b,r) => r.distance > b.distance ? r : b, allRuns[0]).date}.`
+            : '';
+
         // Inject today's remaining macros
         const goals = loadGoals();
         const todayTotals = todayLog.meals.reduce((a, m) => ({
@@ -2201,7 +2230,7 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
         }
 
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + macroContext + nameContext + programContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + macroContext + nameContext + programContext },
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
