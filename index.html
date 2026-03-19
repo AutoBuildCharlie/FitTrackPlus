@@ -2947,7 +2947,7 @@ function renderWeightChart() {
     weightChartInstance = new Chart(canvas, {
         type: 'line',
         data: {
-            labels: log.map(e => e.date),
+            labels: log.map(e => new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
             datasets: [{
                 label: 'Weight (lbs)',
                 data: log.map(e => e.weight),
