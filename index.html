@@ -807,8 +807,8 @@
         <div id="qlStrength" style="display:none;">
             <!-- 1. Muscle Groups -->
             <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Muscle Groups</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;" id="qlMuscleChips"></div>
-            <input class="ql-input" id="qlMuscles" placeholder="Or type muscle groups..." style="margin-bottom:10px;" oninput="qlMuscleTyped()" />
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="qlMuscleChips"></div>
+            <input type="hidden" id="qlMuscles" />
 
             <!-- 2. Exercise -->
             <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Exercise</div>
@@ -3111,11 +3111,7 @@ function qlToggleMuscle(m) {
     if (list.style.display !== 'none') qlShowExercises();
 }
 
-function qlMuscleTyped() {
-    // If user types manually, clear chip selection
-    qlSelectedMuscles = [];
-    qlRenderMuscleChips();
-}
+function qlMuscleTyped() {}
 
 function qlGetExercisesForSelected() {
     if (!qlSelectedMuscles.length) {
