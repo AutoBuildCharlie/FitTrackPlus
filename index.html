@@ -114,6 +114,12 @@
         .messages::-webkit-scrollbar { width: 3px; }
         .messages::-webkit-scrollbar-thumb { background: var(--orange-dim); border-radius: 2px; }
 
+        /* QUICK LOG */
+        .ql-tab { flex:1; background:#1a1a1a; border:1px solid var(--border); border-radius:8px; padding:8px; color:var(--text-dim); font-size:13px; cursor:pointer; transition:all 0.15s; }
+        .ql-tab.active { background:rgba(255,107,0,0.15); border-color:var(--orange); color:var(--orange); font-weight:700; }
+        .ql-input { width:100%; background:#1a1a1a; border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:14px; outline:none; }
+        .ql-input:focus { border-color:var(--orange); }
+
         /* ── MESSAGE BUBBLES ── */
         .message {
             max-width: 88%;
@@ -752,6 +758,7 @@
             <div class="input-row">
                 <button class="mic-btn" id="cameraBtn" title="Upload photo — AI reads anything">📷</button>
                 <button class="mic-btn" id="barcodeBtn" title="Scan barcode">🔍</button>
+                <button class="mic-btn" id="quickLogBtn" title="Quick log — no internet needed" style="font-size:15px;">＋</button>
                 <input type="file" accept="image/*" id="cameraInput" style="display:none;">
                 <textarea class="text-input" id="textInput" placeholder="Log meal or workout..." rows="1"></textarea>
                 <button class="send-btn" id="sendBtn">&#10148;</button>
@@ -764,6 +771,57 @@
 </div>
 
 <!-- WEEKLY VIEW OVERLAY -->
+<!-- QUICK LOG OVERLAY -->
+<div class="overlay" id="quickLogOverlay">
+    <div class="modal" style="max-width:420px;width:92%;padding:20px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="modal-title" style="margin-bottom:0;">＋ Quick Log</div>
+            <button onclick="document.getElementById('quickLogOverlay').classList.remove('open')" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;">✕</button>
+        </div>
+
+        <!-- Type selector -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="ql-tab active" onclick="switchQLTab('meal',this)">🍽️ Meal</button>
+            <button class="ql-tab" onclick="switchQLTab('strength',this)">💪 Strength</button>
+            <button class="ql-tab" onclick="switchQLTab('run',this)">🏃 Run</button>
+        </div>
+
+        <!-- MEAL FORM -->
+        <div id="qlMeal">
+            <input class="ql-input" id="qlMealName" placeholder="Food name (e.g. Grilled chicken)" />
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                <input class="ql-input" id="qlCal" placeholder="Calories" type="number" />
+                <input class="ql-input" id="qlProtein" placeholder="Protein (g)" type="number" />
+                <input class="ql-input" id="qlCarbs" placeholder="Carbs (g)" type="number" />
+                <input class="ql-input" id="qlFat" placeholder="Fat (g)" type="number" />
+            </div>
+        </div>
+
+        <!-- STRENGTH FORM -->
+        <div id="qlStrength" style="display:none;">
+            <input class="ql-input" id="qlExercise" placeholder="Exercise (e.g. Bench Press)" />
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;">
+                <input class="ql-input" id="qlSets" placeholder="Sets" type="number" />
+                <input class="ql-input" id="qlReps" placeholder="Reps" type="number" />
+                <input class="ql-input" id="qlWeight" placeholder="Weight (lbs)" type="number" />
+            </div>
+            <input class="ql-input" id="qlMuscles" placeholder="Muscle groups (e.g. chest, triceps)" style="margin-top:8px;" />
+        </div>
+
+        <!-- RUN FORM -->
+        <div id="qlRun" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input class="ql-input" id="qlDistance" placeholder="Distance (miles)" type="number" step="0.01" />
+                <input class="ql-input" id="qlDuration" placeholder="Duration (mins)" type="number" />
+                <input class="ql-input" id="qlPace" placeholder="Pace (MM:SS, optional)" />
+                <input class="ql-input" id="qlHR" placeholder="Avg HR (optional)" type="number" />
+            </div>
+        </div>
+
+        <button onclick="saveQuickLog()" style="width:100%;margin-top:14px;background:var(--orange);color:#000;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Save →</button>
+    </div>
+</div>
+
 <div class="overlay" id="weeklyOverlay">
     <div class="modal" style="max-width:480px;width:92%;max-height:88vh;overflow-y:auto;padding:20px 16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -2969,6 +3027,76 @@ function renderRunningChart() {
                 </div>
             </div>`;
         })()}`;
+}
+
+// ─── QUICK LOG ───
+let qlCurrentTab = 'meal';
+
+document.getElementById('quickLogBtn').addEventListener('click', () => {
+    document.getElementById('quickLogOverlay').classList.add('open');
+});
+document.getElementById('quickLogOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+function switchQLTab(tab, btn) {
+    qlCurrentTab = tab;
+    document.querySelectorAll('.ql-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('qlMeal').style.display     = tab === 'meal'     ? '' : 'none';
+    document.getElementById('qlStrength').style.display = tab === 'strength' ? '' : 'none';
+    document.getElementById('qlRun').style.display      = tab === 'run'      ? '' : 'none';
+}
+
+function saveQuickLog() {
+    if (qlCurrentTab === 'meal') {
+        const name = document.getElementById('qlMealName').value.trim();
+        const cal  = parseFloat(document.getElementById('qlCal').value)     || 0;
+        const prot = parseFloat(document.getElementById('qlProtein').value)  || 0;
+        const carbs= parseFloat(document.getElementById('qlCarbs').value)    || 0;
+        const fat  = parseFloat(document.getElementById('qlFat').value)      || 0;
+        if (!name) { alert('Enter a food name.'); return; }
+        const entry = { summary: name, calories: cal, protein: prot, carbs, fat };
+        addMealCard(entry);
+        todayLog.meals.push({ ...entry, time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) });
+        saveLog(); renderMacroBar();
+        addBubble('ai', `✅ Logged ${name} — ${cal} cal, ${prot}g protein.`);
+
+    } else if (qlCurrentTab === 'strength') {
+        const exercise = document.getElementById('qlExercise').value.trim();
+        const sets   = parseInt(document.getElementById('qlSets').value)   || 0;
+        const reps   = parseInt(document.getElementById('qlReps').value)   || 0;
+        const weight = parseFloat(document.getElementById('qlWeight').value) || 0;
+        const muscles = document.getElementById('qlMuscles').value.split(',').map(s => s.trim()).filter(Boolean);
+        if (!exercise) { alert('Enter an exercise name.'); return; }
+        const summary = `${exercise}${sets && reps ? ` ${sets}x${reps}` : ''}${weight ? ` @ ${weight}lbs` : ''}`;
+        const entry = { type: 'workout', summary, exercises: [exercise], sets, reps, weight, muscleGroups: muscles, workoutTypes: ['strength'], time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) };
+        todayLog.workouts.push(entry);
+        saveLog(); renderStreak();
+        if (weight) checkPersonalRecord({ exercises: [exercise], weight });
+        addBubble('ai', `✅ Logged ${summary}.`);
+
+    } else if (qlCurrentTab === 'run') {
+        const distance = parseFloat(document.getElementById('qlDistance').value) || 0;
+        const duration = parseFloat(document.getElementById('qlDuration').value) || 0;
+        const pace     = document.getElementById('qlPace').value.trim();
+        const hr       = parseFloat(document.getElementById('qlHR').value) || 0;
+        if (!distance) { alert('Enter a distance.'); return; }
+        const profile = loadProfile();
+        const runCal = Math.round(distance * (parseFloat(profile.weight) || 185) * 0.63);
+        const summary = `${distance} mile run${duration ? ` in ${duration}min` : ''}`;
+        const entry = { type: 'run', summary, distance, duration: duration || null, pace: pace || null, avgHeartRate: hr || null, caloriesBurned: runCal, time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) };
+        addRunCard(entry);
+        todayLog.workouts.push(entry);
+        saveLog(); renderStreak(); renderMacroBar();
+        const runPR = checkRunPR(distance, duration);
+        const prMsg = runPR ? (runPR.isFirst ? ` 🏆 First ${runPR.label} on record!` : ` 🏆 NEW ${runPR.label} PR — ${runPR.timeStr}!`) : '';
+        addBubble('ai', `✅ Logged ${summary} — ${runCal} cal burned.${prMsg}`);
+    }
+
+    // Clear and close
+    ['qlMealName','qlCal','qlProtein','qlCarbs','qlFat','qlExercise','qlSets','qlReps','qlWeight','qlMuscles','qlDistance','qlDuration','qlPace','qlHR'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('quickLogOverlay').classList.remove('open');
 }
 
 document.getElementById('summaryBtn').addEventListener('click', () => {
