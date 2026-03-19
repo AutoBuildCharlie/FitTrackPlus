@@ -2098,7 +2098,7 @@ function renderJournalHistory() {
 // ─────────────────────────────────────────
 function loadProfile() {
     const raw = localStorage.getItem('fittrack_profile');
-    return raw ? JSON.parse(raw) : { name: '', age: '', weight: '', heightFt: '', heightIn: '', hrMax: '' };
+    return raw ? JSON.parse(raw) : { name: '', age: '', weight: '', heightFt: '', heightIn: '', hrMax: '', fitnessLevel: '', fitnessGoal: '' };
 }
 
 function openSettings() {
@@ -2356,8 +2356,12 @@ async function askClaude(userMessage) {
             programContext = '';
         }
 
+        const fitnessContext = (profile.fitnessLevel || profile.fitnessGoal)
+            ? `\n\nFITNESS PROFILE: Level: ${profile.fitnessLevel || 'unknown'}. Goal: ${profile.fitnessGoal || 'not set'}. Tailor ALL advice to this. Beginner = focus on form, simple movements, consistency, don't overwhelm. Intermediate = progressive overload, compound lifts, structured programming. Advanced = periodization, intensity techniques, sport-specific. Always advance the user toward their goal — suggest next steps, next weights, next milestones.`
+            : `\n\nFITNESS PROFILE: Not set yet. Early in this conversation (naturally, not as a form), ask: "Quick question before we get going — what's your fitness level right now? Like beginner, intermediate, or advanced? And what's your main goal — lose weight, build muscle, get stronger, improve cardio, something else?" Save both when they answer: {"message":"...", "log":{"type":"profile","fitnessLevel":"...","fitnessGoal":"..."}}. Only ask once.`;
+
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + journalContext + goalsContext + nameContext + programContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + journalContext + goalsContext + nameContext + fitnessContext + programContext },
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
@@ -2483,12 +2487,14 @@ async function askClaude(userMessage) {
         } else if (logData?.type === 'profile') {
             const current = loadProfile();
             const updated = {
-                name:     logData.name     ?? current.name,
-                age:      logData.age      ?? current.age,
-                weight:   logData.weight   ?? current.weight,
-                heightFt: logData.heightFt ?? current.heightFt,
-                heightIn: logData.heightIn ?? current.heightIn,
-                hrMax:    logData.hrMax    ?? current.hrMax
+                name:         logData.name         ?? current.name,
+                age:          logData.age          ?? current.age,
+                weight:       logData.weight       ?? current.weight,
+                heightFt:     logData.heightFt     ?? current.heightFt,
+                heightIn:     logData.heightIn     ?? current.heightIn,
+                hrMax:        logData.hrMax        ?? current.hrMax,
+                fitnessLevel: logData.fitnessLevel ?? current.fitnessLevel,
+                fitnessGoal:  logData.fitnessGoal  ?? current.fitnessGoal
             };
             localStorage.setItem('fittrack_profile', JSON.stringify(updated));
             renderProfileDisplay();
