@@ -2244,7 +2244,16 @@ async function askClaude(userMessage) {
     document.getElementById('sendBtn').disabled = true;
 
     try {
-        // Build messages in OpenAI-compatible format for Groq
+        // ── LAZY CONTEXT — detect intent first so flags are available everywhere ──
+        const msg = userMessage.toLowerCase();
+        const isFood    = /eat|ate|had|meal|food|snack|calor|protein|carb|fat|macro|drink|drank|log.*food|nutrition|hunger|diet/.test(msg);
+        const isRun     = /run|ran|mile|km|jog|cardio|pace|5k|10k|marathon|sprint|treadmill/.test(msg);
+        const isLift    = /lift|workout|exercise|bench|squat|deadlift|press|curl|row|pull|push|sets|reps|weight|gym|muscle|train/.test(msg);
+        const isWeekly  = /week|summary|this week|weekly|how.*(did|was)|total|average/.test(msg);
+        const isWeight  = /body.*weight|weigh|scale|pounds|lbs|heavie|lighter|gained|lost.*weight/.test(msg);
+        const isGoal    = /goal|target|want to|trying to|aim|achieve|pr|personal record|best/.test(msg);
+        const isProgram = /program|plan|today.*workout|what.*train|schedule/.test(msg);
+
         // Inject saved food library so AI knows Cal's custom foods
         const savedFoods = loadFoodLibrary();
         const foodContext = isFood && savedFoods.length > 0
@@ -2275,40 +2284,6 @@ async function askClaude(userMessage) {
                 });
             }
         });
-        // Build full weekly summary for AI context
-        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        let weekSummaryLines = [];
-        let wTotCal = 0, wTotProt = 0, wTotCarbs = 0, wTotFat = 0, wTotWorkouts = 0, wTotMiles = 0;
-        weekDates.forEach((d, i) => {
-            const ds = localDateStr(d);
-            const raw = localStorage.getItem('fittrack_' + ds);
-            if (!raw) return;
-            const log = JSON.parse(raw);
-            const dayCal   = (log.meals||[]).reduce((a,m) => a+(m.calories||0), 0);
-            const dayProt  = (log.meals||[]).reduce((a,m) => a+(m.protein||0), 0);
-            const dayCarbs = (log.meals||[]).reduce((a,m) => a+(m.carbs||0), 0);
-            const dayFat   = (log.meals||[]).reduce((a,m) => a+(m.fat||0), 0);
-            const dayWos   = (log.workouts||[]).map(w => w.summary).join(', ');
-            const dayMiles = (log.workouts||[]).reduce((a,w) => a+(w.distance||0), 0);
-            wTotCal += dayCal; wTotProt += dayProt; wTotCarbs += dayCarbs; wTotFat += dayFat;
-            wTotWorkouts += (log.workouts||[]).length; wTotMiles += dayMiles;
-            if (dayCal > 0 || (log.workouts||[]).length > 0) {
-                weekSummaryLines.push(`${days[i]} ${ds}: ${dayCal} cal, ${dayProt}g protein${dayWos ? ', workouts: ' + dayWos : ''}${dayMiles > 0 ? ', ' + dayMiles.toFixed(1) + ' miles' : ''}`);
-            }
-        });
-        const weekContext = weekSummaryLines.length > 0
-            ? `\n\nTHIS WEEK'S DATA (use this to answer any weekly summary questions):\n${weekSummaryLines.join('\n')}\nWeek totals: ${wTotCal} cal, ${wTotProt}g protein, ${wTotCarbs}g carbs, ${wTotFat}g fat, ${wTotWorkouts} workouts, ${wTotMiles.toFixed(1)} miles run.`
-            : '';
-
-        // ── LAZY CONTEXT — only inject what's relevant to this message ──
-        const msg = userMessage.toLowerCase();
-        const isFood    = /eat|ate|had|meal|food|snack|calor|protein|carb|fat|macro|drink|drank|log.*food|nutrition|hunger|diet/.test(msg);
-        const isRun     = /run|ran|mile|km|jog|cardio|pace|5k|10k|marathon|sprint|treadmill/.test(msg);
-        const isLift    = /lift|workout|exercise|bench|squat|deadlift|press|curl|row|pull|push|sets|reps|weight|gym|muscle|train/.test(msg);
-        const isWeekly  = /week|summary|this week|weekly|how.*(did|was)|total|average/.test(msg);
-        const isWeight  = /body.*weight|weigh|scale|pounds|lbs|heavie|lighter|gained|lost.*weight/.test(msg);
-        const isGoal    = /goal|target|want to|trying to|aim|achieve|pr|personal record|best/.test(msg);
-        const isProgram = /program|plan|today.*workout|what.*train|schedule/.test(msg);
 
         const workoutContext = (isLift || isWeekly) && recentMuscles.length > 0
             ? `\n\nMuscles trained this week: ${[...new Set(recentMuscles)].join(', ')}.` : '';
