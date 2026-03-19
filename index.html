@@ -3205,13 +3205,9 @@ function qlRenderMuscleChips() {
 }
 
 function qlToggleMuscle(m) {
-    const idx = qlSelectedMuscles.indexOf(m);
-    if (idx >= 0) qlSelectedMuscles.splice(idx, 1);
-    else qlSelectedMuscles.push(m);
+    qlSelectedMuscles = qlSelectedMuscles[0] === m ? [] : [m];
     qlRenderMuscleChips();
-    // Update the text input to reflect selection
     document.getElementById('qlMuscles').value = qlSelectedMuscles.join(', ');
-    // Refresh exercise list
     document.getElementById('qlExercise').value = '';
     qlShowExercises();
 }
