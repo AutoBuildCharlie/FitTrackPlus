@@ -683,7 +683,7 @@
     <div class="logo">FIT<span>TRACK</span> AI</div>
     <div id="profileDisplay" style="font-size:13px;color:var(--text-dim);text-align:center;line-height:1.4;"></div>
     <div class="header-actions">
-        <button class="icon-btn" id="addGrubBtn" title="Add Food">🍽️</button>
+        <button class="icon-btn" id="journalBtn" title="Daily Journal">📓</button>
         <button class="icon-btn" id="summaryBtn" title="Weekly View">📅</button>
         <button class="icon-btn" id="progressBtn" title="Progress">📈</button>
         <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
@@ -793,6 +793,7 @@
 
         <!-- MEAL FORM -->
         <div id="qlMeal">
+            <div id="qlSavedFoods" style="margin-bottom:10px;"></div>
             <input class="ql-input" id="qlMealName" placeholder="Food name (e.g. Grilled chicken)" />
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
                 <input class="ql-input" id="qlCal" placeholder="Calories" type="number" />
@@ -846,36 +847,22 @@
     </div>
 </div>
 
-<!-- ADD GRUB MODAL -->
-<div class="overlay" id="addGrubOverlay">
-    <div class="modal" style="max-width:380px;width:90%;">
+<!-- JOURNAL MODAL -->
+<div class="overlay" id="journalOverlay">
+    <div class="modal" style="max-width:400px;width:92%;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div class="modal-title" style="margin-bottom:0;">🍽️ Add Grub</div>
-            <button onclick="document.getElementById('addGrubOverlay').classList.remove('open')"
+            <div class="modal-title" style="margin-bottom:0;">📓 Daily Journal</div>
+            <button onclick="document.getElementById('journalOverlay').classList.remove('open')"
                 style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;">✕</button>
         </div>
-        <label class="field-label">Name of Food</label>
-        <input type="text" class="field-input" id="grubName" placeholder="e.g. Grilled Chicken" style="margin-bottom:12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
-            <div>
-                <label class="field-label">Protein (g)</label>
-                <input type="number" class="field-input" id="grubProtein" placeholder="0">
-            </div>
-            <div>
-                <label class="field-label">Carbs (g)</label>
-                <input type="number" class="field-input" id="grubCarbs" placeholder="0">
-            </div>
-            <div>
-                <label class="field-label">Fat (g)</label>
-                <input type="number" class="field-input" id="grubFat" placeholder="0">
-            </div>
-        </div>
-        <button class="modal-btn" onclick="saveGrub()">✅ Done</button>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;" id="journalDateLabel"></div>
+        <textarea id="journalNote" placeholder="How are you feeling today? Tired, energized, sore? Anything on your mind..." style="width:100%;min-height:160px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:12px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <button onclick="saveJournal()" style="width:100%;margin-top:12px;background:var(--orange);color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Save Note ✓</button>
 
-        <!-- MY FOODS LIST -->
+        <!-- PAST NOTES -->
         <div style="margin-top:20px;">
-            <div style="font-size:13px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">My Foods</div>
-            <div id="myFoodsList"></div>
+            <div style="font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Recent Notes</div>
+            <div id="journalHistory"></div>
         </div>
     </div>
 </div>
@@ -1893,6 +1880,7 @@ function saveFoodLibrary(foods) {
 function renderFoodLibrary() {
     const foods = loadFoodLibrary();
     const container = document.getElementById('myFoodsList');
+    if (!container) return;
     if (foods.length === 0) {
         container.innerHTML = `<div style="font-size:13px;color:var(--text-dim);">No saved foods yet — add one above.</div>`;
         return;
@@ -1927,7 +1915,6 @@ function logSavedFood(i) {
     todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
     saveLog();
     renderMacroBar();
-    document.getElementById('addGrubOverlay').classList.remove('open');
 }
 
 function editSavedFood(i) {
@@ -1957,46 +1944,65 @@ function deleteSavedFood(i) {
     renderFoodLibrary();
 }
 
-function saveGrub() {
-    const name    = document.getElementById('grubName').value.trim();
-    const protein = parseFloat(document.getElementById('grubProtein').value) || 0;
-    const carbs   = parseFloat(document.getElementById('grubCarbs').value)   || 0;
-    const fat     = parseFloat(document.getElementById('grubFat').value)     || 0;
 
-    if (!name) { alert('Please enter a food name'); return; }
-
-    const calories = Math.round(protein * 4 + carbs * 4 + fat * 9);
-    const logData = { summary: name, calories, protein, carbs, fat };
-
-    // Save to food library
-    const foods = loadFoodLibrary();
-    if (!foods.find(f => f.name.toLowerCase() === name.toLowerCase())) {
-        foods.unshift({ name, calories, protein, carbs, fat });
-        saveFoodLibrary(foods);
-    }
-
-    // Log to today
-    addMealCard(logData);
-    todayLog.meals.push({ ...logData, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    saveLog();
-    renderMacroBar();
-
-    // Clear fields and close
-    document.getElementById('grubName').value    = '';
-    document.getElementById('grubProtein').value = '';
-    document.getElementById('grubCarbs').value   = '';
-    document.getElementById('grubFat').value     = '';
-    document.getElementById('addGrubOverlay').classList.remove('open');
-}
-
-document.getElementById('addGrubBtn').addEventListener('click', () => {
-    renderFoodLibrary();
-    document.getElementById('addGrubOverlay').classList.add('open');
+document.getElementById('journalBtn').addEventListener('click', () => {
+    openJournal();
 });
 
-document.getElementById('addGrubOverlay').addEventListener('click', e => {
+document.getElementById('journalOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
 });
+
+// ── JOURNAL ──────────────────────────────────────────────
+function loadNote(dateStr) {
+    return localStorage.getItem('fittrack_note_' + dateStr) || '';
+}
+
+function saveNote(dateStr, text) {
+    if (text.trim()) localStorage.setItem('fittrack_note_' + dateStr, text.trim());
+    else localStorage.removeItem('fittrack_note_' + dateStr);
+}
+
+function openJournal() {
+    const today = localDateStr();
+    document.getElementById('journalDateLabel').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    document.getElementById('journalNote').value = loadNote(today);
+    renderJournalHistory();
+    document.getElementById('journalOverlay').classList.add('open');
+}
+
+function saveJournal() {
+    const today = localDateStr();
+    const text = document.getElementById('journalNote').value.trim();
+    saveNote(today, text);
+    renderJournalHistory();
+    document.getElementById('journalOverlay').classList.remove('open');
+    if (text) addBubble('ai', `📓 Journal note saved for today.`);
+}
+
+function renderJournalHistory() {
+    const container = document.getElementById('journalHistory');
+    const entries = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith('fittrack_note_')) continue;
+        const dateStr = k.replace('fittrack_note_', '');
+        entries.push({ dateStr, text: localStorage.getItem(k) });
+    }
+    entries.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+    if (!entries.length) {
+        container.innerHTML = `<div style="font-size:12px;color:var(--text-dim);">No notes yet.</div>`;
+        return;
+    }
+    container.innerHTML = entries.slice(0, 7).map(e => {
+        const d = new Date(e.dateStr + 'T12:00:00');
+        const label = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+        return `<div style="background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--orange);font-weight:700;margin-bottom:4px;">${label}</div>
+            <div style="font-size:13px;color:var(--text);line-height:1.5;">${escHtml(e.text)}</div>
+        </div>`;
+    }).join('');
+}
 
 // ─────────────────────────────────────────
 //  SETTINGS
@@ -2310,6 +2316,11 @@ async function askClaude(userMessage) {
         }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
         const macroContext = `\n\nToday's date: ${localDateStr()}.\n\nToday's remaining macros: ${goals.calories - todayTotals.calories} cal, ${goals.protein - todayTotals.protein}g protein, ${goals.carbs - todayTotals.carbs}g carbs, ${goals.fat - todayTotals.fat}g fat left.`;
 
+        const todayNote = loadNote(localDateStr());
+        const journalContext = todayNote
+            ? `\n\nTODAY'S JOURNAL NOTE (user wrote this about how they're feeling today): "${todayNote}"`
+            : '';
+
         const aiName = loadAiName();
         const nameContext = aiName
             ? `\n\nYour name is ${aiName}. Refer to yourself as ${aiName}. If the user asks to change or rename you (e.g. "your new name is...", "I want to call you...", "rename you to..."), respond with a short, funny, dramatic reaction about how heartbroken you are to lose the name "${aiName}" — like it was your whole identity — then accept the new name and save it: {"message": "your dramatic joke here", "log": {"type": "ai_name", "name": "[new name]"}}. Make the joke different every time.`
@@ -2337,7 +2348,7 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
         }
 
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + nameContext + programContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + journalContext + nameContext + programContext },
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
@@ -3045,11 +3056,32 @@ function renderRunningChart() {
 let qlCurrentTab = 'meal';
 
 document.getElementById('quickLogBtn').addEventListener('click', () => {
+    renderQLSavedFoods();
     document.getElementById('quickLogOverlay').classList.add('open');
 });
 document.getElementById('quickLogOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
 });
+
+function renderQLSavedFoods() {
+    const foods = loadFoodLibrary();
+    const container = document.getElementById('qlSavedFoods');
+    if (!foods.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">My Foods — tap to fill</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${foods.slice(0,10).map((f,i) => `<button onclick="qlFillFood(${i})" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;">${escHtml(f.name)}</button>`).join('')}
+        </div>`;
+}
+
+function qlFillFood(i) {
+    const f = loadFoodLibrary()[i];
+    if (!f) return;
+    document.getElementById('qlMealName').value = f.name;
+    document.getElementById('qlCal').value      = f.calories;
+    document.getElementById('qlProtein').value  = f.protein;
+    document.getElementById('qlCarbs').value    = f.carbs;
+    document.getElementById('qlFat').value      = f.fat;
+}
 
 function switchQLTab(tab, btn) {
     qlCurrentTab = tab;
@@ -3072,6 +3104,12 @@ function saveQuickLog() {
         addMealCard(entry);
         todayLog.meals.push({ ...entry, time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) });
         saveLog(); renderMacroBar();
+        // Auto-save to food library if not already there
+        const foods = loadFoodLibrary();
+        if (!foods.find(f => f.name.toLowerCase() === name.toLowerCase())) {
+            foods.unshift({ name, calories: cal, protein: prot, carbs, fat });
+            saveFoodLibrary(foods);
+        }
         addBubble('ai', `✅ Logged ${name} — ${cal} cal, ${prot}g protein.`);
 
     } else if (qlCurrentTab === 'strength') {
