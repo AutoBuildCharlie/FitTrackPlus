@@ -3222,7 +3222,7 @@ function qlGetExercisesForSelected() {
     if (!qlSelectedMuscles.length) return [];
     const exSet = new Set();
     qlSelectedMuscles.forEach(m => (QL_MUSCLES[m] || []).forEach(e => exSet.add(e)));
-    return [...exSet].sort();
+    return [...exSet];
 }
 
 function qlShowExercises() {
