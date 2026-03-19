@@ -2247,8 +2247,8 @@ async function askClaude(userMessage) {
         // Build messages in OpenAI-compatible format for Groq
         // Inject saved food library so AI knows Cal's custom foods
         const savedFoods = loadFoodLibrary();
-        const foodContext = savedFoods.length > 0
-            ? `\n\nCal's saved foods (use THESE exact macros when he mentions them by name):\n${savedFoods.map(f => `- ${f.name}: ${f.calories} cal, ${f.protein}g protein, ${f.carbs}g carbs, ${f.fat}g fat`).join('\n')}`
+        const foodContext = isFood && savedFoods.length > 0
+            ? `\n\nSaved foods: ${savedFoods.slice(0,15).map(f=>`${f.name}:${f.calories}cal ${f.protein}g P ${f.carbs}g C ${f.fat}g F`).join(' | ')}`
             : '';
 
         const profile = loadProfile();
@@ -2300,63 +2300,62 @@ async function askClaude(userMessage) {
             ? `\n\nTHIS WEEK'S DATA (use this to answer any weekly summary questions):\n${weekSummaryLines.join('\n')}\nWeek totals: ${wTotCal} cal, ${wTotProt}g protein, ${wTotCarbs}g carbs, ${wTotFat}g fat, ${wTotWorkouts} workouts, ${wTotMiles.toFixed(1)} miles run.`
             : '';
 
-        const workoutContext = recentMuscles.length > 0
-            ? `\n\nMuscle groups trained this week: ${[...new Set(recentMuscles)].join(', ')}.`
-            : '';
+        // ── LAZY CONTEXT — only inject what's relevant to this message ──
+        const msg = userMessage.toLowerCase();
+        const isFood    = /eat|ate|had|meal|food|snack|calor|protein|carb|fat|macro|drink|drank|log.*food|nutrition|hunger|diet/.test(msg);
+        const isRun     = /run|ran|mile|km|jog|cardio|pace|5k|10k|marathon|sprint|treadmill/.test(msg);
+        const isLift    = /lift|workout|exercise|bench|squat|deadlift|press|curl|row|pull|push|sets|reps|weight|gym|muscle|train/.test(msg);
+        const isWeekly  = /week|summary|this week|weekly|how.*(did|was)|total|average/.test(msg);
+        const isWeight  = /body.*weight|weigh|scale|pounds|lbs|heavie|lighter|gained|lost.*weight/.test(msg);
+        const isGoal    = /goal|target|want to|trying to|aim|achieve|pr|personal record|best/.test(msg);
+        const isProgram = /program|plan|today.*workout|what.*train|schedule/.test(msg);
 
-        // PRs
+        const workoutContext = (isLift || isWeekly) && recentMuscles.length > 0
+            ? `\n\nMuscles trained this week: ${[...new Set(recentMuscles)].join(', ')}.` : '';
+
         const prs = loadPRs();
-        const prContext = Object.keys(prs).length > 0
-            ? `\n\nPERSONAL RECORDS (all-time best weights):\n${Object.entries(prs).map(([ex, w]) => `- ${ex}: ${w} lbs`).join('\n')}`
-            : '';
+        const prContext = (isLift || isGoal) && Object.keys(prs).length > 0
+            ? `\n\nPRs: ${Object.entries(prs).map(([ex,w]) => `${ex}:${w}lbs`).join(', ')}` : '';
 
-        // Bodyweight log (last 10 entries)
         const weightLog = loadWeightLog();
-        const weightContext = weightLog.length > 0
-            ? `\n\nBODYWEIGHT LOG (most recent first):\n${[...weightLog].reverse().slice(0,10).map(e => `- ${e.date}: ${e.weight} lbs`).join('\n')}\nStarting weight: ${weightLog[0].weight} lbs (${weightLog[0].date}). Current weight: ${weightLog[weightLog.length-1].weight} lbs.`
-            : '';
+        const weightContext = (isWeight || isGoal) && weightLog.length > 0
+            ? `\n\nWeight log: ${[...weightLog].reverse().slice(0,5).map(e=>`${e.date}:${e.weight}lbs`).join(', ')}. Start:${weightLog[0].weight}lbs Current:${weightLog[weightLog.length-1].weight}lbs.` : '';
 
-        // Run history (all weeks — scan localStorage for runs)
-        const allRuns = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (!k || !k.startsWith('fittrack_2')) continue;
-            try {
-                const d = JSON.parse(localStorage.getItem(k));
-                (d.workouts||[]).forEach(w => {
-                    if (w.type === 'run' && w.distance) allRuns.push({ date: k.replace('fittrack_',''), distance: w.distance, duration: w.duration, pace: w.pace, calories: w.caloriesBurned });
-                });
-            } catch(_) {}
+        let runContext = '', runPRContext = '';
+        if (isRun || isWeekly) {
+            const allRuns = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || !k.startsWith('fittrack_2')) continue;
+                try { const d = JSON.parse(localStorage.getItem(k)); (d.workouts||[]).forEach(w => { if (w.type==='run'&&w.distance) allRuns.push({date:k.replace('fittrack_',''),distance:w.distance,duration:w.duration,pace:w.pace,calories:w.caloriesBurned}); }); } catch(_) {}
+            }
+            allRuns.sort((a,b)=>b.date.localeCompare(a.date));
+            runContext = allRuns.length > 0
+                ? `\n\nRuns: ${allRuns.slice(0,5).map(r=>`${r.date}:${r.distance}mi${r.duration?' in '+r.duration+'min':''}${r.pace?' @'+r.pace:''}`).join(', ')}` : '';
+            const runPRData = loadRunPRs();
+            runPRContext = Object.keys(runPRData).length > 0
+                ? `\n\nRace PRs: ${RUN_PR_DISTANCES.filter(d=>runPRData[d.key]).map(d=>{const pr=runPRData[d.key];const m=Math.floor(pr.duration);const s=Math.round((pr.duration%1)*60);return `${d.label}:${m}:${s.toString().padStart(2,'0')}`}).join(', ')}` : '';
         }
-        allRuns.sort((a,b) => b.date.localeCompare(a.date));
-        const runContext = allRuns.length > 0
-            ? `\n\nRUN HISTORY (most recent first, up to 10):\n${allRuns.slice(0,10).map(r => `- ${r.date}: ${r.distance} miles${r.duration ? ' in '+r.duration+'min' : ''}${r.pace ? ' @ '+r.pace+'/mi' : ''}${r.calories ? ', '+r.calories+' cal burned' : ''}`).join('\n')}\nBest run: ${allRuns.reduce((b,r) => r.distance > b.distance ? r : b, allRuns[0]).distance} miles on ${allRuns.reduce((b,r) => r.distance > b.distance ? r : b, allRuns[0]).date}.`
-            : '';
 
-        const runPRData = loadRunPRs();
-        const runPRContext = Object.keys(runPRData).length > 0
-            ? `\n\nRACE PRs (best times):\n${RUN_PR_DISTANCES.filter(d => runPRData[d.key]).map(d => { const pr = runPRData[d.key]; const mins = Math.floor(pr.duration); const secs = Math.round((pr.duration%1)*60); return `- ${d.label}: ${mins}:${secs.toString().padStart(2,'0')} (set on ${pr.date})`; }).join('\n')}`
-            : '';
+        const weekContext = isWeekly ? (() => {
+            const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            let lines=[],wCal=0,wProt=0,wWork=0,wMi=0;
+            weekDates.forEach((d,i)=>{const ds=localDateStr(d);const raw=localStorage.getItem('fittrack_'+ds);if(!raw)return;const log=JSON.parse(raw);const dayCal=(log.meals||[]).reduce((a,m)=>a+(m.calories||0),0);const dayProt=(log.meals||[]).reduce((a,m)=>a+(m.protein||0),0);const dayWos=(log.workouts||[]).map(w=>w.summary).join(', ');const dayMi=(log.workouts||[]).reduce((a,w)=>a+(w.distance||0),0);wCal+=dayCal;wProt+=dayProt;wWork+=(log.workouts||[]).length;wMi+=dayMi;if(dayCal>0||(log.workouts||[]).length>0)lines.push(`${days[i]}:${dayCal}cal ${dayProt}g prot${dayWos?' | '+dayWos:''}${dayMi>0?' '+dayMi.toFixed(1)+'mi':''}`)});
+            return lines.length>0?`\n\nThis week:\n${lines.join('\n')}\nTotals: ${wCal}cal ${wProt}g protein ${wWork} workouts ${wMi.toFixed(1)}mi`:'';
+        })() : '';
 
-        // Inject today's remaining macros
         const goals = loadGoals();
-        const todayTotals = todayLog.meals.reduce((a, m) => ({
-            calories: a.calories + m.calories, protein: a.protein + m.protein,
-            carbs: a.carbs + m.carbs, fat: a.fat + m.fat
-        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-        const macroContext = `\n\nToday's date: ${localDateStr()}.\n\nToday's remaining macros: ${goals.calories - todayTotals.calories} cal, ${goals.protein - todayTotals.protein}g protein, ${goals.carbs - todayTotals.carbs}g carbs, ${goals.fat - todayTotals.fat}g fat left.`;
+        const todayTotals = todayLog.meals.reduce((a,m)=>({calories:a.calories+m.calories,protein:a.protein+m.protein,carbs:a.carbs+m.carbs,fat:a.fat+m.fat}),{calories:0,protein:0,carbs:0,fat:0});
+        const macroContext = `\n\nDate:${localDateStr()}. Remaining today:${goals.calories-todayTotals.calories}cal ${goals.protein-todayTotals.protein}g protein ${goals.carbs-todayTotals.carbs}g carbs ${goals.fat-todayTotals.fat}g fat.`;
 
         const todayNote = loadNote(localDateStr());
-        const journalContext = todayNote
-            ? `\n\nTODAY'S JOURNAL NOTE (user wrote this about how they're feeling today): "${todayNote}"`
-            : '';
+        const journalContext = todayNote ? `\n\nToday's note: "${todayNote}"` : '';
 
         const goalsList = loadGoalsList();
-        const activeGoals = goalsList.filter(g => !g.achieved);
-        const achievedGoals = goalsList.filter(g => g.achieved);
-        const goalsContext = goalsList.length > 0
-            ? `\n\nUSER GOALS:\nActive goals (not yet achieved):\n${activeGoals.length ? activeGoals.map(g => `- [ID:${g.id}] ${g.text}`).join('\n') : 'None'}\nAchieved goals:\n${achievedGoals.length ? achievedGoals.map(g => `- ${g.text} (achieved ${g.achievedDate})`).join('\n') : 'None'}`
-            : `\n\nUSER GOALS: No goals saved yet. When the user mentions something they want to achieve (e.g. "I want to lose 10 lbs", "I want to run a 5k under 25 minutes", "I want to bench 200 lbs"), save it immediately: {"log": {"type": "save_goal", "text": "their goal in plain language"}}`;
+        const activeGoals = goalsList.filter(g=>!g.achieved);
+        const goalsContext = (isGoal || activeGoals.length > 0)
+            ? `\n\nGoals: ${activeGoals.length ? activeGoals.map(g=>`[${g.id}] ${g.text}`).join(' | ') : 'none yet. Save when user mentions one: {"log":{"type":"save_goal","text":"..."}}'}`
+            : '';
 
         const aiName = loadAiName();
         const nameContext = aiName
@@ -2366,7 +2365,7 @@ async function askClaude(userMessage) {
         const program = loadProgram();
         const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
         let programContext = '';
-        if (program) {
+        if (program && (isLift || isProgram)) {
             const todayDay = (program.schedule || []).find(d => d.dayOfWeek === dayName);
             const scheduleStr = (program.schedule || []).map(d => {
                 const exStr = (d.exercises || []).map(e =>
