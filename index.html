@@ -806,22 +806,31 @@
         <!-- STRENGTH FORM -->
         <div id="qlStrength" style="display:none;">
             <!-- 1. Muscle Groups -->
-            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Muscle Groups</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="qlMuscleChips"></div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Muscle Groups</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;" id="qlMuscleChips"></div>
             <input type="hidden" id="qlMuscles" />
 
             <!-- 2. Exercise -->
-            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Exercise</div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Exercise</div>
             <div style="position:relative;">
-                <input class="ql-input" id="qlExercise" placeholder="Select or type exercise..." onfocus="qlShowExercises()" oninput="qlFilterExercises()" autocomplete="off" />
+                <input class="ql-input" id="qlExercise" placeholder="Select or type exercise..." onfocus="qlShowExercises()" oninput="qlFilterExercises()" autocomplete="off" style="padding:14px 12px;font-size:16px;" />
                 <div id="qlExerciseList" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--orange);border-radius:10px;max-height:240px;overflow-y:auto;z-index:100;margin-top:4px;"></div>
             </div>
 
             <!-- 3. Sets / Reps / Weight -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;">
-                <input class="ql-input" id="qlSets" placeholder="Sets" type="number" />
-                <input class="ql-input" id="qlReps" placeholder="Reps" type="number" />
-                <input class="ql-input" id="qlWeight" placeholder="Weight (lbs)" type="number" />
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px;">
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Sets</div>
+                    <input class="ql-input" id="qlSets" placeholder="0" type="number" style="padding:14px 8px;font-size:20px;font-weight:700;text-align:center;" />
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Reps</div>
+                    <input class="ql-input" id="qlReps" placeholder="0" type="number" style="padding:14px 8px;font-size:20px;font-weight:700;text-align:center;" />
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Weight (lbs)</div>
+                    <input class="ql-input" id="qlWeight" placeholder="0" type="number" style="padding:14px 8px;font-size:20px;font-weight:700;text-align:center;" />
+                </div>
             </div>
         </div>
 
@@ -3243,7 +3252,7 @@ function qlRenderMuscleChips() {
     const container = document.getElementById('qlMuscleChips');
     container.innerHTML = Object.keys(QL_MUSCLES).map(m => {
         const active = qlSelectedMuscles.includes(m);
-        return `<button type="button" onclick="qlToggleMuscle('${m}')" style="padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid ${active ? 'var(--orange)' : 'var(--border)'};background:${active ? 'rgba(255,107,0,0.18)' : 'var(--bg3)'};color:${active ? 'var(--orange)' : 'var(--text-dim)'};">${m}</button>`;
+        return `<button type="button" onclick="qlToggleMuscle('${m}')" style="padding:10px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:1px solid ${active ? 'var(--orange)' : 'var(--border)'};background:${active ? 'rgba(255,107,0,0.18)' : 'var(--bg3)'};color:${active ? 'var(--orange)' : 'var(--text-dim)'};">${m}</button>`;
     }).join('');
 }
 
@@ -3276,7 +3285,7 @@ function qlShowExercises() {
     if (!exercises.length) { list.style.display = 'none'; return; }
     list.style.display = 'block';
     list.innerHTML = exercises.map(e =>
-        `<div onclick="qlPickExercise('${e.replace(/'/g,"\\'")}')\" style="padding:10px 14px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background=''">${e}</div>`
+        `<div onclick="qlPickExercise('${e.replace(/'/g,"\\'")}')\" style="padding:14px 16px;font-size:15px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background=''">${e}</div>`
     ).join('');
 }
 
