@@ -765,6 +765,12 @@
                 <button class="mic-btn" id="barcodeBtn" title="Scan barcode">🔍</button>
                 <button class="mic-btn" id="quickLogBtn" title="Quick log — no internet needed" style="font-size:15px;">＋</button>
                 <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
+                <input type="file" accept="image/*" id="libraryInput" style="display:none;">
+                <!-- Camera menu popup -->
+                <div id="cameraMenu" style="display:none;position:absolute;bottom:60px;left:0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;z-index:200;min-width:180px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+                    <div onclick="document.getElementById('cameraInput').click();document.getElementById('cameraMenu').style.display='none';" style="padding:14px 18px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);">📷 Take Photo</div>
+                    <div onclick="document.getElementById('libraryInput').click();document.getElementById('cameraMenu').style.display='none';" style="padding:14px 18px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;">🖼️ Photo Library</div>
+                </div>
                 <textarea class="text-input" id="textInput" placeholder="Log meal or workout..." rows="1"></textarea>
                 <button class="send-btn" id="sendBtn">&#10148;</button>
             </div>
@@ -1739,12 +1745,19 @@ function resetAllData() {
 // ─────────────────────────────────────────
 //  CAMERA / NUTRITION SCAN
 // ─────────────────────────────────────────
-document.getElementById('cameraBtn').addEventListener('click', () => {
-    document.getElementById('cameraHint').style.display = 'block';
-    document.getElementById('cameraInput').click();
+document.getElementById('cameraBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const menu = document.getElementById('cameraMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 });
 
-document.getElementById('cameraInput').addEventListener('change', async (e) => {
+// Close camera menu when tapping outside
+document.addEventListener('click', () => {
+    const menu = document.getElementById('cameraMenu');
+    if (menu) menu.style.display = 'none';
+});
+
+async function handleImageFile(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -1835,10 +1848,14 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
         } finally {
             document.getElementById('sendBtn').disabled = false;
             document.getElementById('cameraInput').value = '';
+        document.getElementById('libraryInput').value = '';
         }
     };
     reader.readAsDataURL(file);
-});
+}
+
+document.getElementById('cameraInput').addEventListener('change', handleImageFile);
+document.getElementById('libraryInput').addEventListener('change', handleImageFile);
 
 // ─────────────────────────────────────────
 //  BARCODE SCANNER
