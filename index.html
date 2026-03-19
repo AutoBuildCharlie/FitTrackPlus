@@ -2137,6 +2137,31 @@ async function askClaude(userMessage) {
                 });
             }
         });
+        // Build full weekly summary for AI context
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        let weekSummaryLines = [];
+        let wTotCal = 0, wTotProt = 0, wTotCarbs = 0, wTotFat = 0, wTotWorkouts = 0, wTotMiles = 0;
+        weekDates.forEach((d, i) => {
+            const ds = localDateStr(d);
+            const raw = localStorage.getItem('fittrack_' + ds);
+            if (!raw) return;
+            const log = JSON.parse(raw);
+            const dayCal   = (log.meals||[]).reduce((a,m) => a+(m.calories||0), 0);
+            const dayProt  = (log.meals||[]).reduce((a,m) => a+(m.protein||0), 0);
+            const dayCarbs = (log.meals||[]).reduce((a,m) => a+(m.carbs||0), 0);
+            const dayFat   = (log.meals||[]).reduce((a,m) => a+(m.fat||0), 0);
+            const dayWos   = (log.workouts||[]).map(w => w.summary).join(', ');
+            const dayMiles = (log.workouts||[]).reduce((a,w) => a+(w.distance||0), 0);
+            wTotCal += dayCal; wTotProt += dayProt; wTotCarbs += dayCarbs; wTotFat += dayFat;
+            wTotWorkouts += (log.workouts||[]).length; wTotMiles += dayMiles;
+            if (dayCal > 0 || (log.workouts||[]).length > 0) {
+                weekSummaryLines.push(`${days[i]} ${ds}: ${dayCal} cal, ${dayProt}g protein${dayWos ? ', workouts: ' + dayWos : ''}${dayMiles > 0 ? ', ' + dayMiles.toFixed(1) + ' miles' : ''}`);
+            }
+        });
+        const weekContext = weekSummaryLines.length > 0
+            ? `\n\nTHIS WEEK'S DATA (use this to answer any weekly summary questions):\n${weekSummaryLines.join('\n')}\nWeek totals: ${wTotCal} cal, ${wTotProt}g protein, ${wTotCarbs}g carbs, ${wTotFat}g fat, ${wTotWorkouts} workouts, ${wTotMiles.toFixed(1)} miles run.`
+            : '';
+
         const workoutContext = recentMuscles.length > 0
             ? `\n\nMuscle groups trained this week: ${[...new Set(recentMuscles)].join(', ')}.`
             : '';
@@ -2176,7 +2201,7 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
         }
 
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + macroContext + nameContext + programContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + macroContext + nameContext + programContext },
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
