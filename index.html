@@ -825,11 +825,16 @@
 <div class="overlay" id="weeklyOverlay">
     <div class="modal" style="max-width:480px;width:92%;max-height:88vh;overflow-y:auto;padding:20px 16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div class="modal-title" style="margin-bottom:0;">📅 Weekly Log</div>
+            <div class="modal-title" style="margin-bottom:0;">📅 Log</div>
             <button onclick="document.getElementById('weeklyOverlay').classList.remove('open')"
                 style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;">✕</button>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <button class="ql-tab active" id="tabWeek" onclick="switchLogTab('week')">This Week</button>
+            <button class="ql-tab" id="tabMonth" onclick="switchLogTab('month')">Monthly</button>
+        </div>
         <div id="weeklyContent"></div>
+        <div id="monthlyContent" style="display:none;"></div>
         <button onclick="resetAllData()" style="width:100%;margin-top:20px;padding:14px;background:#1a1a1a;border:1px solid #ff3333;color:#ff3333;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
             🗑️ Reset All Data
         </button>
@@ -1590,7 +1595,9 @@ function renderWeeklyView() {
                 html += `<div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px;">💪 Workouts</div>`;
                 log.workouts.forEach(w => {
                     const muscles = (w.muscleGroups || []).slice(0,3).join(', ');
-                    html += `<div style="font-size:13px;color:var(--text);margin-bottom:4px;">• ${escHtml(w.summary)}</div>`;
+                    const setsReps = (w.sets && w.reps) ? `${w.sets}x${w.reps}${w.weight ? ' @ ' + w.weight + 'lbs' : ''}` : '';
+                    html += `<div style="font-size:13px;color:var(--text);margin-bottom:2px;">• ${escHtml(w.summary)}</div>`;
+                    if (setsReps) html += `<div style="font-size:11px;color:var(--orange);margin-bottom:2px;padding-left:10px;">${setsReps}</div>`;
                     if (muscles) html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;padding-left:10px;">${muscles}</div>`;
                 });
             }
@@ -3099,8 +3106,73 @@ function saveQuickLog() {
     document.getElementById('quickLogOverlay').classList.remove('open');
 }
 
+function switchLogTab(tab) {
+    document.getElementById('tabWeek').classList.toggle('active', tab === 'week');
+    document.getElementById('tabMonth').classList.toggle('active', tab === 'month');
+    document.getElementById('weeklyContent').style.display  = tab === 'week'  ? '' : 'none';
+    document.getElementById('monthlyContent').style.display = tab === 'month' ? '' : 'none';
+    if (tab === 'month') renderMonthlyView();
+}
+
+function renderMonthlyView() {
+    const monthMap = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith('fittrack_2')) continue;
+        const dateStr = k.replace('fittrack_', '');
+        const month = dateStr.slice(0, 7); // YYYY-MM
+        try {
+            const log = JSON.parse(localStorage.getItem(k));
+            if (!monthMap[month]) monthMap[month] = [];
+            (log.workouts || []).forEach(w => monthMap[month].push({ dateStr, ...w }));
+        } catch(_) {}
+    }
+
+    const months = Object.keys(monthMap).sort((a,b) => b.localeCompare(a));
+    if (!months.length) { document.getElementById('monthlyContent').innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No workout history yet.</p>'; return; }
+
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    let html = '';
+    months.forEach(m => {
+        const [year, mo] = m.split('-');
+        const label = `${monthNames[parseInt(mo)-1]} ${year}`;
+        const workouts = monthMap[m].sort((a,b) => b.dateStr.localeCompare(a.dateStr));
+        html += `<div style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-size:14px;font-weight:800;color:var(--orange);">${label}</div>
+                <div style="font-size:11px;color:var(--text-dim);">${workouts.length} workout${workouts.length !== 1 ? 's' : ''}</div>
+            </div>`;
+        workouts.forEach(w => {
+            const d = new Date(w.dateStr + 'T12:00:00');
+            const dayName = d.toLocaleDateString('en-US', { weekday:'short' });
+            const dayNum  = d.getDate();
+            const setsReps = (w.sets && w.reps) ? `${w.sets}x${w.reps}${w.weight ? ' @ ' + w.weight + 'lbs' : ''}` : '';
+            const muscles = (w.muscleGroups || []).slice(0,3).join(', ');
+            const isRun = w.type === 'run';
+            html += `<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div style="min-width:36px;text-align:center;background:rgba(255,107,0,0.1);border-radius:8px;padding:6px 4px;">
+                    <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;">${dayName}</div>
+                    <div style="font-size:16px;font-weight:800;color:var(--orange);">${dayNum}</div>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:700;">${escHtml(w.summary)}</div>
+                    ${setsReps ? `<div style="font-size:11px;color:var(--orange);margin-top:2px;">${setsReps}</div>` : ''}
+                    ${muscles && !isRun ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${muscles}</div>` : ''}
+                    ${isRun && w.distance ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${w.distance} mi${w.pace ? ' · ' + w.pace + '/mi' : ''}${w.caloriesBurned ? ' · ' + w.caloriesBurned + ' cal' : ''}</div>` : ''}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    });
+    document.getElementById('monthlyContent').innerHTML = html;
+}
+
 document.getElementById('summaryBtn').addEventListener('click', () => {
     renderWeeklyView();
+    document.getElementById('weeklyContent').style.display = '';
+    document.getElementById('monthlyContent').style.display = 'none';
+    document.getElementById('tabWeek').classList.add('active');
+    document.getElementById('tabMonth').classList.remove('active');
     document.getElementById('weeklyOverlay').classList.add('open');
 });
 
