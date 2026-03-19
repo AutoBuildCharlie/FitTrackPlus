@@ -986,10 +986,11 @@
         </div>
 
         <!-- Tabs -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
             <button onclick="showProgressTab('strength')" id="tabStrength" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--orange);background:var(--orange);color:#fff;font-weight:700;cursor:pointer;">💪 Strength</button>
             <button onclick="showProgressTab('running')" id="tabRunning" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">🏃 Running</button>
             <button onclick="showProgressTab('weight')" id="tabWeight" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">⚖️ Weight</button>
+            <button onclick="showProgressTab('goals')" id="tabGoals" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-weight:700;cursor:pointer;">🎯 Goals</button>
         </div>
 
         <!-- Strength Tab -->
@@ -1018,6 +1019,13 @@
             <canvas id="weightChart" height="200" style="width:100%;display:none;"></canvas>
             <div id="weightEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;">No weigh-ins yet. Log your weight to start tracking.</div>
             <div id="weightStats" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Goals Tab -->
+        <div id="progressGoals" style="display:none;">
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">Tell the AI your goals in chat — it will save them here automatically. When you reach one, it'll celebrate and mark it done. 🎯</div>
+            <div id="goalsList"></div>
+            <div id="goalsEmpty" style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:14px;display:none;">No goals saved yet. Tell the AI what you're working towards!</div>
         </div>
     </div>
 </div>
@@ -2227,7 +2235,12 @@ If Cal asks what to eat or what he should have for his next meal, look at his re
 
 If Cal asks what he should train today or what workout to do, look at the muscle groups he's already hit this week and suggest what's been neglected. Be specific (e.g. "You hit chest and shoulders yesterday — today's a good day for legs or back. Try squats and Romanian deadlifts.").
 
-If the user asks about exercise form, technique, or wants to learn how to do a movement — explain it clearly in plain language, then recommend a YouTube search using a trusted creator. Format it as: "To see it in action, search YouTube for '[creator] [exercise]'." Trusted creators: Jeff Nippard (science-based strength), Athlean-X (form and injury prevention), Alan Thrall (powerlifting), Pamela Reif (bodyweight/cardio). Never generate an actual URL — always recommend a search term only.`;
+If the user asks about exercise form, technique, or wants to learn how to do a movement — explain it clearly in plain language, then recommend a YouTube search using a trusted creator. Format it as: "To see it in action, search YouTube for '[creator] [exercise]'." Trusted creators: Jeff Nippard (science-based strength), Athlean-X (form and injury prevention), Alan Thrall (powerlifting), Pamela Reif (bodyweight/cardio). Never generate an actual URL — always recommend a search term only.
+
+GOALS — saving and achieving:
+- When the user mentions anything they want to achieve (weight loss target, a lift goal, a run time, a streak, etc.), save it immediately: {"log": {"type": "save_goal", "text": "Run a 5k under 25 minutes"}}. Do this even mid-conversation without being asked.
+- Every session, you already have the user's active goals in your context. Reference them naturally — e.g. if they log a run close to their goal pace, mention it.
+- When the user achieves a goal (hits a target weight, beats a run time, hits a lift PR that matches their goal, etc.), mark it achieved AND celebrate hard. Use the goal's ID from context: {"log": {"type": "achieve_goal", "id": 1234567890}}. The celebration should be energetic, personal, and specific — mention the exact goal they crushed. Use emojis. Make them feel amazing.`;
 
 
 async function askClaude(userMessage) {
@@ -2344,6 +2357,13 @@ async function askClaude(userMessage) {
             ? `\n\nTODAY'S JOURNAL NOTE (user wrote this about how they're feeling today): "${todayNote}"`
             : '';
 
+        const goalsList = loadGoalsList();
+        const activeGoals = goalsList.filter(g => !g.achieved);
+        const achievedGoals = goalsList.filter(g => g.achieved);
+        const goalsContext = goalsList.length > 0
+            ? `\n\nUSER GOALS:\nActive goals (not yet achieved):\n${activeGoals.length ? activeGoals.map(g => `- [ID:${g.id}] ${g.text}`).join('\n') : 'None'}\nAchieved goals:\n${achievedGoals.length ? achievedGoals.map(g => `- ${g.text} (achieved ${g.achievedDate})`).join('\n') : 'None'}`
+            : `\n\nUSER GOALS: No goals saved yet. When the user mentions something they want to achieve (e.g. "I want to lose 10 lbs", "I want to run a 5k under 25 minutes", "I want to bench 200 lbs"), save it immediately: {"log": {"type": "save_goal", "text": "their goal in plain language"}}`;
+
         const aiName = loadAiName();
         const nameContext = aiName
             ? `\n\nYour name is ${aiName}. Refer to yourself as ${aiName}. If the user asks to change or rename you (e.g. "your new name is...", "I want to call you...", "rename you to..."), respond with a short, funny, dramatic reaction about how heartbroken you are to lose the name "${aiName}" — like it was your whole identity — then accept the new name and save it: {"message": "your dramatic joke here", "log": {"type": "ai_name", "name": "[new name]"}}. Make the joke different every time.`
@@ -2371,7 +2391,7 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
         }
 
         const messages = [
-            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + journalContext + nameContext + programContext },
+            { role: 'system', content: SYSTEM + foodContext + profileContext + hrZoneContext + workoutContext + weekContext + prContext + weightContext + runContext + runPRContext + macroContext + journalContext + goalsContext + nameContext + programContext },
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
@@ -2678,6 +2698,20 @@ Today is ${dayName}. ${todayDay ? `Today is ${todayDay.label}. When the user ask
                 const { dateStr, snap } = undoStack.pop();
                 setLogForDate(dateStr, snap);
             }
+        } else if (logData?.type === 'save_goal') {
+            if (logData.text) {
+                const goals = loadGoalsList();
+                goals.push({ id: Date.now(), text: logData.text, achieved: false, achievedDate: null, addedDate: localDateStr() });
+                saveGoalsList(goals);
+            }
+        } else if (logData?.type === 'achieve_goal') {
+            const goals = loadGoalsList();
+            const goal = goals.find(g => g.id === logData.id);
+            if (goal) {
+                goal.achieved = true;
+                goal.achievedDate = localDateStr();
+                saveGoalsList(goals);
+            }
         }
         } // end processLogItem
 
@@ -2769,7 +2803,7 @@ document.getElementById('progressOverlay').addEventListener('click', e => {
 let runningChartInstance = null;
 
 function showProgressTab(tab) {
-    ['strength','running','weight'].forEach(t => {
+    ['strength','running','weight','goals'].forEach(t => {
         document.getElementById('progress' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = tab === t ? 'block' : 'none';
         const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         btn.style.background  = tab === t ? 'var(--orange)' : 'transparent';
@@ -2778,6 +2812,65 @@ function showProgressTab(tab) {
     });
     if (tab === 'running') renderRunningChart();
     if (tab === 'weight')  renderWeightChart();
+    if (tab === 'goals')   renderGoalsTab();
+}
+
+// ─────────────────────────────────────────
+//  GOALS
+// ─────────────────────────────────────────
+function loadGoalsList() {
+    const raw = localStorage.getItem('fittrack_goals_list');
+    return raw ? JSON.parse(raw) : [];
+}
+
+function saveGoalsList(goals) {
+    localStorage.setItem('fittrack_goals_list', JSON.stringify(goals));
+}
+
+function deleteGoal(id) {
+    const goals = loadGoalsList().filter(g => g.id !== id);
+    saveGoalsList(goals);
+    renderGoalsTab();
+}
+
+function renderGoalsTab() {
+    const goals = loadGoalsList();
+    const container = document.getElementById('goalsList');
+    const empty = document.getElementById('goalsEmpty');
+    if (!goals.length) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    const active   = goals.filter(g => !g.achieved);
+    const achieved = goals.filter(g => g.achieved);
+
+    let html = '';
+    if (active.length) {
+        html += `<div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">In Progress</div>`;
+        active.forEach(g => {
+            html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+                <div style="font-size:22px;">🎯</div>
+                <div style="flex:1;font-size:13px;color:var(--text);line-height:1.4;">${escHtml(g.text)}</div>
+                <button onclick="deleteGoal(${g.id})" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:0;">✕</button>
+            </div>`;
+        });
+    }
+    if (achieved.length) {
+        html += `<div style="font-size:11px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:0.5px;margin-top:16px;margin-bottom:10px;">✅ Achieved</div>`;
+        achieved.forEach(g => {
+            html += `<div style="background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.25);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+                <div style="font-size:22px;">🏆</div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;color:var(--text);line-height:1.4;text-decoration:line-through;opacity:0.7;">${escHtml(g.text)}</div>
+                    ${g.achievedDate ? `<div style="font-size:11px;color:#4ade80;margin-top:2px;">Achieved ${g.achievedDate}</div>` : ''}
+                </div>
+                <button onclick="deleteGoal(${g.id})" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:0;">✕</button>
+            </div>`;
+        });
+    }
+    container.innerHTML = html;
 }
 
 // ─────────────────────────────────────────
