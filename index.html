@@ -778,7 +778,7 @@
 <!-- WEEKLY VIEW OVERLAY -->
 <!-- QUICK LOG OVERLAY -->
 <div class="overlay" id="quickLogOverlay">
-    <div class="modal" style="max-width:420px;width:92%;padding:20px 16px;">
+    <div class="modal" style="max-width:420px;width:92%;padding:20px 16px;min-height:520px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div class="modal-title" style="margin-bottom:0;">＋ Quick Log</div>
             <button onclick="document.getElementById('quickLogOverlay').classList.remove('open')" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;">✕</button>
@@ -814,7 +814,7 @@
             <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Exercise</div>
             <div style="position:relative;">
                 <input class="ql-input" id="qlExercise" placeholder="Select or type exercise..." onfocus="qlShowExercises()" oninput="qlFilterExercises()" autocomplete="off" />
-                <div id="qlExerciseList" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--orange);border-radius:10px;max-height:240px;overflow-y:auto;z-index:100;margin-bottom:4px;"></div>
+                <div id="qlExerciseList" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--orange);border-radius:10px;max-height:240px;overflow-y:auto;z-index:100;margin-top:4px;"></div>
             </div>
 
             <!-- 3. Sets / Reps / Weight -->
