@@ -3106,28 +3106,29 @@ function qlToggleMuscle(m) {
     qlRenderMuscleChips();
     // Update the text input to reflect selection
     document.getElementById('qlMuscles').value = qlSelectedMuscles.join(', ');
-    // Refresh exercise list if open
-    const list = document.getElementById('qlExerciseList');
-    if (list.style.display !== 'none') qlShowExercises();
+    // Refresh exercise list
+    document.getElementById('qlExercise').value = '';
+    qlShowExercises();
 }
 
 function qlMuscleTyped() {}
 
 function qlGetExercisesForSelected() {
-    if (!qlSelectedMuscles.length) {
-        // Return all exercises flat
-        return Object.values(QL_MUSCLES).flat();
-    }
+    if (!qlSelectedMuscles.length) return [];
     const exSet = new Set();
     qlSelectedMuscles.forEach(m => (QL_MUSCLES[m] || []).forEach(e => exSet.add(e)));
     return [...exSet].sort();
 }
 
 function qlShowExercises() {
+    const list = document.getElementById('qlExerciseList');
+    if (!qlSelectedMuscles.length) {
+        list.style.display = 'none';
+        return;
+    }
     const filter = document.getElementById('qlExercise').value.toLowerCase();
     let exercises = qlGetExercisesForSelected();
     if (filter) exercises = exercises.filter(e => e.toLowerCase().includes(filter));
-    const list = document.getElementById('qlExerciseList');
     if (!exercises.length) { list.style.display = 'none'; return; }
     list.style.display = 'block';
     list.innerHTML = exercises.map(e =>
