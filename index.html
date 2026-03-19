@@ -3028,6 +3028,7 @@ function renderStrengthChart() {
                     if (!exerciseMap[key]) exerciseMap[key] = { name: ex, entries: [] };
                     exerciseMap[key].entries.push({
                         date:   log._date,
+                        time:   w.time || '',
                         weight: parseFloat(w.weight) || 0,
                         reps:   parseFloat(w.reps)   || 0
                     });
@@ -3045,13 +3046,23 @@ function renderStrengthChart() {
         const maxWeight = Math.max(...ex.entries.map(e => e.weight));
         const maxReps   = Math.max(...ex.entries.map(e => e.reps));
         const prEntries = ex.entries.filter(e => e.weight === maxWeight || e.reps === maxReps);
-        const latestDate = prEntries.reduce((a, e) => e.date > a ? e.date : a, '');
+        const latestEntry = prEntries.reduce((a, e) => {
+            const aKey = a.date + (a.time || '');
+            const eKey = e.date + (e.time || '');
+            return eKey > aKey ? e : a;
+        }, prEntries[0] || { date: '', time: '' });
+        const latestDate = latestEntry.date;
+        const latestTime = latestEntry.time || '';
         const prTypes = [];
         if (maxWeight > 0) prTypes.push({ label: '💪 Strength PR', value: maxWeight, unit: 'lbs' });
         if (maxReps   > 0) prTypes.push({ label: '🔁 Reps PR',     value: maxReps,   unit: 'reps' });
         const dateStr = new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return { name: ex.name, prTypes, dateStr, latestDate };
-    }).sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+        return { name: ex.name, prTypes, dateStr, latestDate, latestTime };
+    }).sort((a, b) => {
+        const aKey = a.latestDate + (a.latestTime || '');
+        const bKey = b.latestDate + (b.latestTime || '');
+        return bKey.localeCompare(aKey);
+    });
 
     function buildCard(pr) {
         const badges = pr.prTypes.map(t =>
