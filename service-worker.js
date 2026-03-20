@@ -1,4 +1,4 @@
-const CACHE = 'fittrack-v1';
+const CACHE = 'fittrack-v2';
 const ASSETS = [
   '/FitTrackAI/',
   '/FitTrackAI/index.html',
