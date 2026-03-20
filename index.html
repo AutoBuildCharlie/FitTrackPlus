@@ -2923,7 +2923,7 @@ async function send() {
     const input = document.getElementById('textInput');
     const text = input.value.trim();
     if (!text) return;
-    if (!apiKey) { openSettings(); return; }
+    if (!apiKey) return;
 
     input.value = '';
     input.style.height = 'auto';
