@@ -3293,19 +3293,22 @@ function qlSetModalHeight(tall) {
 
 function qlShowExercises() {
     const list = document.getElementById('qlExerciseList');
-    if (!qlSelectedMuscles.length) {
-        list.style.display = 'none';
-        qlSetModalHeight(false);
-        return;
-    }
     const filter = document.getElementById('qlExercise').value.toLowerCase();
-    let exercises = qlGetExercisesForSelected();
+    // If a muscle is selected, show that muscle's exercises; otherwise show all
+    let exercises;
+    if (qlSelectedMuscles.length) {
+        exercises = qlGetExercisesForSelected();
+    } else {
+        const all = new Set();
+        Object.values(QL_MUSCLES).forEach(arr => arr.forEach(e => all.add(e)));
+        exercises = [...all].sort();
+    }
     if (filter) exercises = exercises.filter(e => e.toLowerCase().includes(filter));
     if (!exercises.length) { list.style.display = 'none'; qlSetModalHeight(false); return; }
     list.style.display = 'block';
     qlSetModalHeight(true);
     list.innerHTML = exercises.map(e =>
-        `<div onclick="qlPickExercise('${e.replace(/'/g,"\\'")}')\" style="padding:14px 16px;font-size:15px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background=''">${e}</div>`
+        `<div onmousedown="qlPickExercise('${e.replace(/'/g,"\\'")}')\" style="padding:14px 16px;font-size:15px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background=''">${e}</div>`
     ).join('');
 }
 
