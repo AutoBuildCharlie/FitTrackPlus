@@ -2590,11 +2590,10 @@ async function askClaude(userMessage) {
             ...history.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
 
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await fetch('https://fittrack-proxy.aestheticcal22.workers.dev', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
