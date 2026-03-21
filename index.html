@@ -1164,7 +1164,24 @@ async function loadFromSupabase() {
     if (!user) return;
     const { data, error } = await _supabase.from('user_data').select('data_key, data_value').eq('user_id', user.id);
     if (error || !data) return;
-    data.forEach(row => { if (row.data_value !== null) localStorage.setItem(row.data_key, row.data_value); });
+    data.forEach(row => {
+        if (row.data_value === null) return;
+        const localVal = localStorage.getItem(row.data_key);
+        // For day logs (fittrack_YYYY-MM-DD), keep whichever has more entries to prevent overwriting real data
+        if (!localVal) {
+            localStorage.setItem(row.data_key, row.data_value);
+        } else if (/^fittrack_\d{4}-\d{2}-\d{2}$/.test(row.data_key)) {
+            try {
+                const local = JSON.parse(localVal);
+                const remote = JSON.parse(row.data_value);
+                const localCount = (local.workouts || []).length + (local.meals || []).length;
+                const remoteCount = (remote.workouts || []).length + (remote.meals || []).length;
+                if (remoteCount > localCount) localStorage.setItem(row.data_key, row.data_value);
+            } catch (_) { localStorage.setItem(row.data_key, row.data_value); }
+        } else {
+            localStorage.setItem(row.data_key, row.data_value);
+        }
+    });
 }
 
 async function syncToSupabase() {
@@ -1178,7 +1195,8 @@ async function syncToSupabase() {
         }
     }
     if (rows.length === 0) return;
-    await _supabase.from('user_data').upsert(rows, { onConflict: 'user_id,data_key' });
+    const { error } = await _supabase.from('user_data').upsert(rows, { onConflict: 'user_id,data_key' });
+    if (error) console.warn('FitTrack sync failed:', error.message);
 }
 
 async function signOutUser() {
@@ -1958,11 +1976,13 @@ function deleteDayData(dateStr) {
 
 function resetAllData() {
     if (!confirm('Reset ALL workout and meal data? This cannot be undone.')) return;
-    const dates = getWeekDates();
-    dates.forEach(date => {
-        const key = 'fittrack_' + localDateStr(date);
-        localStorage.removeItem(key);
-    });
+    // Remove all day-log keys across all time (not just current week)
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && /^fittrack_\d{4}-\d{2}-\d{2}$/.test(key)) keysToRemove.push(key);
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
     todayLog = { workouts: [], meals: [] };
     saveLog();
     renderMacroBar();
@@ -3817,7 +3837,8 @@ if ('serviceWorker' in navigator) {
         document.getElementById('authOverlay').style.display = 'flex';
     }
     _supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+        // Only run initApp on a real new sign-in, not on token refresh or existing session restore
+        if (event === 'SIGNED_IN' && session && document.getElementById('authOverlay').style.display !== 'none') {
             await initApp();
         }
     });
