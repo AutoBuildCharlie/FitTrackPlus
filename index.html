@@ -3823,6 +3823,31 @@ function addWelcome() {
 }
 
 // ─────────────────────────────────────────
+//  MIDNIGHT RESET — refresh todayLog when date changes
+// ─────────────────────────────────────────
+let _activeDate = localDateStr();
+
+function checkDateRollover() {
+    const now = localDateStr();
+    if (now !== _activeDate) {
+        _activeDate = now;
+        todayLog = loadTodayLog();
+        renderMacroBar();
+        renderSummary();
+        renderWater();
+        renderStreak();
+    }
+}
+
+// Check when user returns to the tab (phone unlock, tab switch, etc.)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkDateRollover();
+});
+
+// Also check every 60 seconds as a fallback
+setInterval(checkDateRollover, 60000);
+
+// ─────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────
 if ('serviceWorker' in navigator) {
