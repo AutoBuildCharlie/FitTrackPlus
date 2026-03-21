@@ -1317,6 +1317,7 @@ function showMealConfirm(logData) {
     // Always recalculate calories from macros — never trust AI's calorie estimate
     logData.calories = Math.round((logData.protein || 0) * 4 + (logData.carbs || 0) * 4 + (logData.fat || 0) * 9);
     const id = 'mc_' + Date.now();
+    const defaultServings = logData.servings || 1;
     pendingMealLogs[id] = logData;
     // Store per-serving base values so servings input can live-multiply
     const bCal = logData.calories, bProt = logData.protein, bCarbs = logData.carbs, bFat = logData.fat;
@@ -1340,16 +1341,16 @@ function showMealConfirm(logData) {
         </div>
         <div style="margin-bottom:10px;">
             <div style="font-size:10px;color:#888;margin-bottom:3px;">SERVINGS</div>
-            <input type="number" id="${id}_servings" value="1" min="0.25" step="0.25"
+            <input type="number" id="${id}_servings" value="${defaultServings}" min="0.25" step="0.25"
                 style="width:100%;box-sizing:border-box;background:#111;border:1px solid rgba(255,107,0,0.5);border-radius:6px;
                        padding:6px 8px;color:#fb923c;font-size:14px;font-weight:700;font-family:inherit;"
                 oninput="updateMealServings('${id}',${bCal},${bProt},${bCarbs},${bFat})">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-            ${inp('cal',  'Calories',    bCal)}
-            ${inp('prot', 'Protein (g)', bProt)}
-            ${inp('carbs','Carbs (g)',   bCarbs)}
-            ${inp('fat',  'Fat (g)',     bFat)}
+            ${inp('cal',  'Calories',    Math.round(bCal   * defaultServings))}
+            ${inp('prot', 'Protein (g)', Math.round(bProt  * defaultServings))}
+            ${inp('carbs','Carbs (g)',   Math.round(bCarbs * defaultServings))}
+            ${inp('fat',  'Fat (g)',     Math.round(bFat   * defaultServings))}
         </div>
         <div style="display:flex;gap:8px;">
             <button onclick="confirmMealLog('${id}')"
@@ -2488,7 +2489,8 @@ STYLE: 1-3 sentences max. Direct, fun, motivating. Add a quick joke about the fo
 LOG TYPES — only log new events, never re-log something already tracked:
 
 MEAL (only when user says they ate/had/consumed something):
-{"message":"...", "log":{"type":"meal","foods":["chicken"],"calories":300,"protein":35,"carbs":0,"fat":7,"summary":"Grilled chicken"}}
+{"message":"...", "log":{"type":"meal","foods":["chicken"],"calories":300,"protein":35,"carbs":0,"fat":7,"summary":"Grilled chicken","servings":1}}
+- SERVINGS RULE: If user mentions a quantity (e.g. "2 chicken thighs", "3 eggs"), set "servings" to that number and set macros to PER-SINGLE-SERVING values. If no quantity mentioned, set "servings":1 and macros are for the whole thing.
 - If asking about macros only → message only, no log.
 - If macros are uncertain (tea, water, etc.) → ask for nutrition info, no log.
 - Always estimate macros. Use actual food name as summary.
