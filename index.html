@@ -2531,7 +2531,9 @@ BODYWEIGHT: {"log":{"type":"weight_log","weight":183,"date":"YYYY-MM-DD"}} | del
 
 WATER: {"log":{"type":"water","action":"add","glasses":1}} | set exact: {"log":{"type":"water","glasses":4}} | goal: {"log":{"type":"water","goal":10}}
 
-EDIT/DELETE (all support optional "date", defaults to today):
+READ/EDIT/DELETE (all support optional "date", defaults to today):
+- Show meals: {"log":{"type":"show_meals"}} or with date: {"log":{"type":"show_meals","date":"YYYY-MM-DD"}} — use when user asks what they ate, to see their log, or wants to review meals. Always trigger this before editing/deleting so you know the exact meal names.
+- MATCH RULE: The "match" field must use a keyword from the exact meal summary shown in context. If unsure, trigger show_meals first, then edit/delete.
 - Edit meal: {"log":{"type":"edit_meal","match":"chicken","calories":400,"protein":45,"carbs":10,"fat":8}} add "mode":"add" to add on top
 - Delete meal: {"log":{"type":"delete_meal","match":"pizza","date":"YYYY-MM-DD"}}
 - Move meal (array): {"log":[{"type":"copy_meal","date":"YYYY-MM-DD","match":"lunch"},{"type":"delete_meal","date":"YYYY-MM-DD","match":"lunch"}]}
@@ -2880,13 +2882,20 @@ async function askClaude(userMessage) {
                 const kw     = (logData.match || '').toLowerCase();
                 const target = (kw ? emLog.meals.find(m => (m.summary || '').toLowerCase().includes(kw)) : null)
                              || emLog.meals[emLog.meals.length - 1];
-                const addMode = logData.mode === 'add';
-                if (logData.calories !== undefined) target.calories = addMode ? (target.calories || 0) + logData.calories : logData.calories;
-                if (logData.protein  !== undefined) target.protein  = addMode ? (target.protein  || 0) + logData.protein  : logData.protein;
-                if (logData.carbs    !== undefined) target.carbs    = addMode ? (target.carbs    || 0) + logData.carbs    : logData.carbs;
-                if (logData.fat      !== undefined) target.fat      = addMode ? (target.fat      || 0) + logData.fat      : logData.fat;
-                if (logData.summary  !== undefined) target.summary  = logData.summary;
-                setLogForDate(emDate, emLog);
+                if (!target) {
+                    addBubble('ai', `❌ Couldn't find "${logData.match || 'that meal'}" in your log. Try saying the exact name you see.`);
+                } else {
+                    const addMode = logData.mode === 'add';
+                    if (logData.calories !== undefined) target.calories = addMode ? (target.calories || 0) + logData.calories : logData.calories;
+                    if (logData.protein  !== undefined) target.protein  = addMode ? (target.protein  || 0) + logData.protein  : logData.protein;
+                    if (logData.carbs    !== undefined) target.carbs    = addMode ? (target.carbs    || 0) + logData.carbs    : logData.carbs;
+                    if (logData.fat      !== undefined) target.fat      = addMode ? (target.fat      || 0) + logData.fat      : logData.fat;
+                    if (logData.summary  !== undefined) target.summary  = logData.summary;
+                    setLogForDate(emDate, emLog);
+                    addBubble('ai', `✅ Updated **${target.summary}** → ${target.calories}cal | ${target.protein}g P | ${target.carbs}g C | ${target.fat}g F`);
+                }
+            } else {
+                addBubble('ai', `❌ No meals logged yet to edit.`);
             }
         } else if (logData?.type === 'delete_meal') {
             const dmDate = logData.date || localDateStr();
@@ -2896,8 +2905,39 @@ async function askClaude(userMessage) {
             const idx = kw
                 ? (dmLog.meals || []).findIndex(m => (m.summary || '').toLowerCase().includes(kw))
                 : (dmLog.meals || []).length - 1;
-            if (idx !== -1) (dmLog.meals || []).splice(idx, 1);
-            setLogForDate(dmDate, dmLog);
+            if (idx !== -1) {
+                const removed = dmLog.meals[idx];
+                dmLog.meals.splice(idx, 1);
+                setLogForDate(dmDate, dmLog);
+                addBubble('ai', `✅ Removed **${removed.summary}** from your log.`);
+            } else {
+                addBubble('ai', `❌ Couldn't find "${logData.match || 'that meal'}" in your log. Try saying the exact name you see.`);
+            }
+        } else if (logData?.type === 'show_meals') {
+            const smDate = logData.date || localDateStr();
+            const smLog = getLogForDate(smDate);
+            const meals = smLog.meals || [];
+            if (meals.length === 0) {
+                addBubble('ai', `No meals logged${logData.date && logData.date !== localDateStr() ? ' for that day' : ' today'} yet.`);
+            } else {
+                const totals = meals.reduce((a,m)=>({cal:a.cal+(m.calories||0),prot:a.prot+(m.protein||0),carbs:a.carbs+(m.carbs||0),fat:a.fat+(m.fat||0)}),{cal:0,prot:0,carbs:0,fat:0});
+                const rows = meals.map((m,i)=>`
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #222;">
+                        <div style="color:#f1f1f1;font-size:13px;">${i+1}. ${escHtml(m.summary)}${m.time?`<span style="color:#666;font-size:11px;margin-left:6px;">@${m.time}</span>`:''}</div>
+                        <div style="text-align:right;font-size:12px;color:#888;white-space:nowrap;margin-left:8px;">${m.calories}cal <span style="color:#fb923c;">${m.protein}P</span></div>
+                    </div>`).join('');
+                const card = document.createElement('div');
+                card.style.cssText = 'background:#1a1a1a;border:1.5px solid #fb923c;border-radius:12px;padding:14px;margin:6px 0;';
+                card.innerHTML = `
+                    <div style="font-size:10px;font-weight:700;color:#fb923c;letter-spacing:1px;margin-bottom:10px;">MEALS LOGGED${logData.date && logData.date !== localDateStr() ? ' — ' + logData.date : ' TODAY'}</div>
+                    ${rows}
+                    <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #333;">
+                        <span style="font-size:12px;color:#aaa;">Total</span>
+                        <span style="font-size:13px;font-weight:700;color:#fb923c;">${totals.cal} cal &nbsp; ${totals.prot}g P &nbsp; ${totals.carbs}g C &nbsp; ${totals.fat}g F</span>
+                    </div>`;
+                document.getElementById('messages').appendChild(card);
+                scrollBottom();
+            }
         } else if (logData?.type === 'delete_workout') {
             const dwDate = logData.date || localDateStr();
             pushUndo(dwDate);
