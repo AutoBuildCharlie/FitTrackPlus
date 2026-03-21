@@ -894,10 +894,22 @@
             <div id="journalSavedMsg" style="font-size:12px;color:#4ade80;display:none;">Saved!</div>
         </div>
 
-        <!-- Past Notes -->
-        <div style="margin-top:20px;">
-            <div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Past Notes — tap to edit</div>
-            <div id="journalHistory"></div>
+    </div>
+</div>
+
+<!-- NOTE EDIT OVERLAY -->
+<div class="overlay" id="noteEditOverlay">
+    <div class="modal" style="max-width:400px;width:92%;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="modal-title" style="margin-bottom:0;">✏️ Edit Note</div>
+            <button onclick="document.getElementById('noteEditOverlay').classList.remove('open')"
+                style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;" id="noteEditDateLabel"></div>
+        <textarea id="noteEditText" style="width:100%;min-height:120px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:12px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="saveNoteEdit()" style="flex:1;background:var(--orange);color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Save ✓</button>
+            <button onclick="deleteNoteFromView()" style="background:#1a1a1a;border:1px solid #ff3333;color:#ff3333;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">Delete</button>
         </div>
     </div>
 </div>
@@ -1862,18 +1874,26 @@ function renderWeeklyView() {
                 </div>`;
             }
 
-            // Note for the day
-            const dayNote = loadNote(dateStr);
-            if (dayNote) {
-                html += `<div style="padding:0 14px 10px;"><div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:4px;">📓 Note</div><div style="font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;">"${escHtml(dayNote)}"</div></div>`;
+            // Notes for the day
+            const dayNotes = loadNotes(dateStr);
+            if (dayNotes.length) {
+                html += `<div style="padding:0 14px 10px;"><div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px;">📓 Notes</div>`;
+                dayNotes.forEach((n, i) => {
+                    html += `<div onclick="openNoteEdit('${dateStr}', ${i})" style="font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;padding:6px 10px;background:var(--bg3);border-radius:8px;margin-bottom:4px;cursor:pointer;">${n.time ? `<span style="font-size:10px;color:var(--orange);font-weight:700;margin-right:6px;font-style:normal;">${n.time}</span>` : ''}"${escHtml(n.text)}" <span style="font-size:10px;color:var(--text-dim);font-style:normal;">✏️</span></div>`;
+                });
+                html += `</div>`;
             }
 
             html += `</div>`;
         } else {
-            // No workout/meal data — still show note if exists
-            const dayNote = loadNote(dateStr);
-            if (dayNote) {
-                html += `<div style="padding:10px 14px;"><div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:4px;">📓 Note</div><div style="font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;">"${escHtml(dayNote)}"</div></div>`;
+            // No workout/meal data — still show notes if exist
+            const dayNotes = loadNotes(dateStr);
+            if (dayNotes.length) {
+                html += `<div style="padding:10px 14px;"><div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px;">📓 Notes</div>`;
+                dayNotes.forEach((n, i) => {
+                    html += `<div onclick="openNoteEdit('${dateStr}', ${i})" style="font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;padding:6px 10px;background:var(--bg3);border-radius:8px;margin-bottom:4px;cursor:pointer;">${n.time ? `<span style="font-size:10px;color:var(--orange);font-weight:700;margin-right:6px;font-style:normal;">${n.time}</span>` : ''}"${escHtml(n.text)}" <span style="font-size:10px;color:var(--text-dim);font-style:normal;">✏️</span></div>`;
+                });
+                html += `</div>`;
             } else {
                 html += `<div style="padding:10px 14px;font-size:13px;color:var(--text-dim);">No data logged</div>`;
             }
@@ -2233,71 +2253,91 @@ document.getElementById('journalBtn').addEventListener('click', () => {
 document.getElementById('journalOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
 });
+document.getElementById('noteEditOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) { e.currentTarget.classList.remove('open'); noteEditState = null; }
+});
 
 // ── JOURNAL ──────────────────────────────────────────────
-function loadNote(dateStr) {
-    return localStorage.getItem('fittrack_note_' + dateStr) || '';
+function loadNotes(dateStr) {
+    const raw = localStorage.getItem('fittrack_note_' + dateStr);
+    if (!raw) return [];
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+        return parsed ? [{ text: parsed, time: '' }] : [];
+    } catch(_) {
+        return raw ? [{ text: raw, time: '' }] : [];
+    }
 }
 
-function saveNote(dateStr, text) {
-    if (text.trim()) localStorage.setItem('fittrack_note_' + dateStr, text.trim());
+// Legacy helper — returns joined text for AI context
+function loadNote(dateStr) {
+    return loadNotes(dateStr).map(n => n.text).join(' | ');
+}
+
+function saveNotes(dateStr, notes) {
+    if (notes && notes.length) localStorage.setItem('fittrack_note_' + dateStr, JSON.stringify(notes));
     else localStorage.removeItem('fittrack_note_' + dateStr);
 }
 
-let journalEditDate = null;
-
 function openJournal() {
-    journalEditDate = localDateStr();
     document.getElementById('journalDateLabel').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-    document.getElementById('journalNote').value = loadNote(journalEditDate);
+    document.getElementById('journalNote').value = '';
     document.getElementById('journalSavedMsg').style.display = 'none';
-    renderJournalHistory();
     document.getElementById('journalOverlay').classList.add('open');
 }
 
-function journalEditPast(dateStr) {
-    journalEditDate = dateStr;
-    const d = new Date(dateStr + 'T12:00:00');
-    document.getElementById('journalDateLabel').textContent = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-    document.getElementById('journalNote').value = loadNote(dateStr);
-    document.getElementById('journalNote').focus();
-    document.getElementById('journalSavedMsg').style.display = 'none';
-}
-
 function saveJournal() {
-    const date = journalEditDate || localDateStr();
     const text = document.getElementById('journalNote').value.trim();
-    saveNote(date, text);
-    renderJournalHistory();
-    // Show saved confirmation, stay open
+    if (!text) return;
+    const date = localDateStr();
+    const notes = loadNotes(date);
+    notes.push({ text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+    saveNotes(date, notes);
+    document.getElementById('journalNote').value = '';
     const msg = document.getElementById('journalSavedMsg');
     msg.style.display = 'block';
     setTimeout(() => msg.style.display = 'none', 2000);
 }
 
-function renderJournalHistory() {
-    const container = document.getElementById('journalHistory');
-    const entries = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k || !k.startsWith('fittrack_note_')) continue;
-        const dateStr = k.replace('fittrack_note_', '');
-        entries.push({ dateStr, text: localStorage.getItem(k) });
-    }
-    entries.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-    if (!entries.length) {
-        container.innerHTML = `<div style="font-size:12px;color:var(--text-dim);">No notes yet.</div>`;
-        return;
-    }
-    container.innerHTML = entries.slice(0, 7).map(e => {
-        const d = new Date(e.dateStr + 'T12:00:00');
-        const label = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-        const isEditing = e.dateStr === journalEditDate;
-        return `<div onclick="journalEditPast('${e.dateStr}')" style="background:${isEditing ? 'rgba(255,107,0,0.1)' : 'var(--bg3)'};border:1px solid ${isEditing ? 'var(--orange)' : 'transparent'};border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;">
-            <div style="font-size:11px;color:var(--orange);font-weight:700;margin-bottom:4px;">${label} ${isEditing ? '✏️' : ''}</div>
-            <div style="font-size:13px;color:var(--text);line-height:1.5;">${escHtml(e.text)}</div>
-        </div>`;
-    }).join('');
+let noteEditState = null;
+
+function openNoteEdit(dateStr, index) {
+    noteEditState = { dateStr, index };
+    const notes = loadNotes(dateStr);
+    const note = notes[index];
+    const d = new Date(dateStr + 'T12:00:00');
+    const label = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    document.getElementById('noteEditDateLabel').textContent = label + (note.time ? ' · ' + note.time : '');
+    document.getElementById('noteEditText').value = note.text;
+    document.getElementById('noteEditOverlay').classList.add('open');
+}
+
+function saveNoteEdit() {
+    if (!noteEditState) return;
+    const { dateStr, index } = noteEditState;
+    const text = document.getElementById('noteEditText').value.trim();
+    if (!text) return;
+    const notes = loadNotes(dateStr);
+    notes[index] = { ...notes[index], text };
+    saveNotes(dateStr, notes);
+    document.getElementById('noteEditOverlay').classList.remove('open');
+    noteEditState = null;
+    const isMonth = document.getElementById('monthlyContent').style.display !== 'none';
+    if (isMonth) renderMonthlyView(); else renderWeeklyView();
+}
+
+function deleteNoteFromView() {
+    if (!noteEditState) return;
+    if (!confirm('Delete this note?')) return;
+    const { dateStr, index } = noteEditState;
+    const notes = loadNotes(dateStr);
+    notes.splice(index, 1);
+    saveNotes(dateStr, notes);
+    document.getElementById('noteEditOverlay').classList.remove('open');
+    noteEditState = null;
+    const isMonth = document.getElementById('monthlyContent').style.display !== 'none';
+    if (isMonth) renderMonthlyView(); else renderWeeklyView();
 }
 
 // ─────────────────────────────────────────
@@ -3637,7 +3677,7 @@ function renderMonthlyView() {
             try {
                 const log = JSON.parse(localStorage.getItem(k));
                 if (!monthMap[month]) monthMap[month] = {};
-                if (!monthMap[month][dateStr]) monthMap[month][dateStr] = { workouts: [], note: '' };
+                if (!monthMap[month][dateStr]) monthMap[month][dateStr] = { workouts: [], notes: [] };
                 (log.workouts || []).forEach(w => monthMap[month][dateStr].workouts.push(w));
             } catch(_) {}
         }
@@ -3645,8 +3685,8 @@ function renderMonthlyView() {
             const dateStr = k.replace('fittrack_note_', '');
             const month = dateStr.slice(0, 7);
             if (!monthMap[month]) monthMap[month] = {};
-            if (!monthMap[month][dateStr]) monthMap[month][dateStr] = { workouts: [], note: '' };
-            monthMap[month][dateStr].note = localStorage.getItem(k) || '';
+            if (!monthMap[month][dateStr]) monthMap[month][dateStr] = { workouts: [], notes: [] };
+            monthMap[month][dateStr].notes = loadNotes(dateStr);
         }
     }
 
@@ -3685,7 +3725,11 @@ function renderMonthlyView() {
                     ${isRun && w.distance ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">${w.distance} mi${w.pace ? ' · ' + w.pace + '/mi' : ''}${w.caloriesBurned ? ' · ' + w.caloriesBurned + ' cal' : ''}${w.location ? ' · 📍 ' + escHtml(w.location) : ''}</div>` : ''}`;
             });
             if (!data.workouts.length) html += `<div style="font-size:12px;color:var(--text-dim);">Rest day</div>`;
-            if (data.note) html += `<div style="font-size:12px;color:var(--text-dim);font-style:italic;margin-top:4px;">📓 "${escHtml(data.note)}"</div>`;
+            if (data.notes && data.notes.length) {
+                data.notes.forEach((n, i) => {
+                    html += `<div onclick="openNoteEdit('${dateStr}', ${i})" style="font-size:12px;color:var(--text-dim);font-style:italic;margin-top:4px;cursor:pointer;padding:4px 8px;background:var(--bg3);border-radius:6px;">${n.time ? `<span style="font-size:10px;color:var(--orange);font-weight:700;margin-right:4px;font-style:normal;">${n.time}</span>` : ''}📓 "${escHtml(n.text)}" <span style="font-size:10px;font-style:normal;">✏️</span></div>`;
+                });
+            }
             html += `</div></div>`;
         });
         html += `</div>`;
