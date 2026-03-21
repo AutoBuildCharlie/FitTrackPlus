@@ -2515,8 +2515,7 @@ WORKOUT:
 RUN: caloriesBurned = distance_miles × weight_lbs × 0.63. Convert km to miles. Only include "pace" if user states it. Include "location" if user mentions where they ran.
 {"message":"...", "log":{"type":"run","distance":3.1,"duration":28,"caloriesBurned":310,"location":"Central Park","summary":"3.1 mile run at Central Park"}}
 - If user says "I ran at [location]" but gives no distance → ask "How many miles did you run at [location]?" before logging.
-- Edit run location: {"log":{"type":"edit_run","location":"Riverside Park"}}
-- Delete run location: {"log":{"type":"edit_run","location":null}}
+- Edit run location: {"log":{"type":"edit_run","location":"Riverside Park"}} | remove location: {"log":{"type":"edit_run","location":null}}
 
 GOALS: Save when user mentions something to achieve. Max 10 active goals. Celebrate hard + mark achieved when they hit it.
 - Save: {"log":{"type":"save_goal","text":"Run 5k under 25min"}}
@@ -2540,8 +2539,8 @@ READ/EDIT/DELETE (all support optional "date", defaults to today):
 - Move meal (array): {"log":[{"type":"copy_meal","date":"YYYY-MM-DD","match":"lunch"},{"type":"delete_meal","date":"YYYY-MM-DD","match":"lunch"}]}
 - Edit workout: {"log":{"type":"edit_workout","match":"squat","weight":225,"sets":5,"reps":3}}
 - Delete workout: {"log":{"type":"delete_workout","match":"bench press"}}
-- Edit run: {"log":{"type":"edit_run","date":"YYYY-MM-DD","distance":5,"duration":45}}
-- Delete run: {"log":{"type":"delete_run","date":"YYYY-MM-DD"}}
+- Edit run: {"log":{"type":"edit_run","distance":5,"duration":45,"pace":"9:30","avgHeartRate":155}} — omit "date" for today. IMPORTANT: if user adds pace, duration, or HR after a run was just logged, always use edit_run to save it — never just comment on it.
+- Delete run: {"log":{"type":"delete_run"}} or with date: {"log":{"type":"delete_run","date":"YYYY-MM-DD"}}
 - Clear all/meals/workouts/week: {"log":{"type":"clear","target":"all"}}
 - Undo: {"log":{"type":"undo"}}
 
@@ -2773,18 +2772,31 @@ async function askClaude(userMessage) {
                 }
                 if (logData.duration !== undefined) run.duration = logData.duration;
                 if (logData.pace     !== undefined) run.pace     = logData.pace;
+                if (logData.avgHeartRate !== undefined) run.avgHeartRate = logData.avgHeartRate;
                 if (logData.location !== undefined) {
                     run.location = logData.location || null;
                     run.summary  = `${run.distance || 0} mile run${run.location ? ' at ' + run.location : ''}`;
                 }
+                setLogForDate(editDate, dayLog);
+                renderRunningChart();
+                const parts = [`**${run.summary}** updated`];
+                if (run.pace) parts.push(`Pace: ${run.pace}/mi`);
+                if (run.duration) parts.push(`Duration: ${run.duration} min`);
+                if (run.caloriesBurned) parts.push(`Cal burned: ${run.caloriesBurned}`);
+                addBubble('ai', `✅ ${parts.join(' · ')}`);
+            } else {
+                addBubble('ai', `❌ No run found for ${editDate}. Log a run first.`);
             }
-            setLogForDate(editDate, dayLog);
         } else if (logData?.type === 'delete_run') {
             const targetDate = logData.date || localDateStr();
             pushUndo(targetDate);
             const dayLog = getLogForDate(targetDate);
+            const run = (dayLog.workouts || []).find(w => w.type === 'run');
             dayLog.workouts = (dayLog.workouts || []).filter(w => w.type !== 'run');
             setLogForDate(targetDate, dayLog);
+            renderRunningChart();
+            if (run) addBubble('ai', `✅ Removed **${run.summary}** from your log.`);
+            else addBubble('ai', `❌ No run found for ${targetDate}.`);
         } else if (logData?.type === 'clear') {
             const target = logData.target || 'all';
             if (target === 'workouts') {
