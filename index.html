@@ -2779,6 +2779,7 @@ async function askClaude(userMessage) {
                 }
                 setLogForDate(editDate, dayLog);
                 renderRunningChart();
+                refreshLogViews();
                 const parts = [`**${run.summary}** updated`];
                 if (run.pace) parts.push(`Pace: ${run.pace}/mi`);
                 if (run.duration) parts.push(`Duration: ${run.duration} min`);
@@ -2795,6 +2796,7 @@ async function askClaude(userMessage) {
             dayLog.workouts = (dayLog.workouts || []).filter(w => w.type !== 'run');
             setLogForDate(targetDate, dayLog);
             renderRunningChart();
+            refreshLogViews();
             if (run) addBubble('ai', `✅ Removed **${run.summary}** from your log.`);
             else addBubble('ai', `❌ No run found for ${targetDate}.`);
         } else if (logData?.type === 'clear') {
@@ -2905,6 +2907,7 @@ async function askClaude(userMessage) {
                     if (logData.fat      !== undefined) target.fat      = addMode ? (target.fat      || 0) + logData.fat      : logData.fat;
                     if (logData.summary  !== undefined) target.summary  = logData.summary;
                     setLogForDate(emDate, emLog);
+                    refreshLogViews();
                     addBubble('ai', `✅ Updated **${target.summary}** → ${target.calories}cal | ${target.protein}g P | ${target.carbs}g C | ${target.fat}g F`);
                 }
             } else {
@@ -2922,6 +2925,7 @@ async function askClaude(userMessage) {
                 const removed = dmLog.meals[idx];
                 dmLog.meals.splice(idx, 1);
                 setLogForDate(dmDate, dmLog);
+                refreshLogViews();
                 addBubble('ai', `✅ Removed **${removed.summary}** from your log.`);
             } else {
                 addBubble('ai', `❌ Couldn't find "${logData.match || 'that meal'}" in your log. Try saying the exact name you see.`);
@@ -3826,6 +3830,13 @@ function saveQuickLog() {
     // Clear and close
     ['qlMealName','qlCal','qlProtein','qlCarbs','qlFat','qlExercise','qlSets','qlReps','qlWeight','qlMuscles','qlDistance','qlDuration','qlPace','qlHR','qlLocation'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('quickLogOverlay').classList.remove('open');
+}
+
+function refreshLogViews() {
+    const overlay = document.getElementById('weeklyOverlay');
+    if (!overlay || !overlay.classList.contains('open')) return;
+    const isMonth = document.getElementById('monthlyContent').style.display !== 'none';
+    if (isMonth) renderMonthlyView(); else renderWeeklyView();
 }
 
 function switchLogTab(tab) {
