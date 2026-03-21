@@ -1318,6 +1318,8 @@ function showMealConfirm(logData) {
     logData.calories = Math.round((logData.protein || 0) * 4 + (logData.carbs || 0) * 4 + (logData.fat || 0) * 9);
     const id = 'mc_' + Date.now();
     pendingMealLogs[id] = logData;
+    // Store per-serving base values so servings input can live-multiply
+    const bCal = logData.calories, bProt = logData.protein, bCarbs = logData.carbs, bFat = logData.fat;
     const inp = (field, label, val) => `
         <div>
             <div style="font-size:10px;color:#888;margin-bottom:3px;">${label}</div>
@@ -1329,13 +1331,25 @@ function showMealConfirm(logData) {
     card.id = id;
     card.style.cssText = 'background:#1a1a1a;border:1.5px solid #fb923c;border-radius:12px;padding:14px;margin:6px 0;';
     card.innerHTML = `
-        <div style="font-size:10px;font-weight:700;color:#fb923c;letter-spacing:1px;margin-bottom:6px;">MEAL ESTIMATE — REVIEW BEFORE LOGGING</div>
-        <div style="font-size:13px;color:#f1f1f1;margin-bottom:10px;">${logData.summary}</div>
+        <div style="font-size:10px;font-weight:700;color:#fb923c;letter-spacing:1px;margin-bottom:10px;">MEAL SCAN — REVIEW BEFORE LOGGING</div>
+        <div style="margin-bottom:10px;">
+            <div style="font-size:10px;color:#888;margin-bottom:3px;">FOOD NAME</div>
+            <input type="text" id="${id}_name" value="${escHtml(logData.summary)}"
+                style="width:100%;box-sizing:border-box;background:#111;border:1px solid #333;border-radius:6px;
+                       padding:6px 8px;color:#f1f1f1;font-size:13px;font-family:inherit;">
+        </div>
+        <div style="margin-bottom:10px;">
+            <div style="font-size:10px;color:#888;margin-bottom:3px;">SERVINGS</div>
+            <input type="number" id="${id}_servings" value="1" min="0.25" step="0.25"
+                style="width:100%;box-sizing:border-box;background:#111;border:1px solid rgba(255,107,0,0.5);border-radius:6px;
+                       padding:6px 8px;color:#fb923c;font-size:14px;font-weight:700;font-family:inherit;"
+                oninput="updateMealServings('${id}',${bCal},${bProt},${bCarbs},${bFat})">
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-            ${inp('cal',  'Calories',   logData.calories)}
-            ${inp('prot', 'Protein (g)', logData.protein)}
-            ${inp('carbs','Carbs (g)',   logData.carbs)}
-            ${inp('fat',  'Fat (g)',     logData.fat)}
+            ${inp('cal',  'Calories',    bCal)}
+            ${inp('prot', 'Protein (g)', bProt)}
+            ${inp('carbs','Carbs (g)',   bCarbs)}
+            ${inp('fat',  'Fat (g)',     bFat)}
         </div>
         <div style="display:flex;gap:8px;">
             <button onclick="confirmMealLog('${id}')"
@@ -1349,12 +1363,22 @@ function showMealConfirm(logData) {
     scrollBottom();
 }
 
+function updateMealServings(id, bCal, bProt, bCarbs, bFat) {
+    const s = parseFloat(document.getElementById(id + '_servings')?.value) || 1;
+    document.getElementById(id + '_cal').value   = Math.round(bCal   * s);
+    document.getElementById(id + '_prot').value  = Math.round(bProt  * s);
+    document.getElementById(id + '_carbs').value = Math.round(bCarbs * s);
+    document.getElementById(id + '_fat').value   = Math.round(bFat   * s);
+}
+
 function confirmMealLog(id) {
     const logData = pendingMealLogs[id];
     if (!logData) return;
     const get = field => parseInt(document.getElementById(id + '_' + field)?.value) || 0;
+    const nameEl = document.getElementById(id + '_name');
     const final = {
         ...logData,
+        summary:  nameEl?.value.trim() || logData.summary,
         calories: get('cal'),
         protein:  get('prot'),
         carbs:    get('carbs'),
