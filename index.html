@@ -854,6 +854,7 @@
                 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">📍</span>
                 <input class="ql-input" id="qlLocation" placeholder="Location (optional, e.g. Central Park)" style="padding-left:34px;" />
             </div>
+            <div id="qlRecentRuns" style="margin-top:14px;"></div>
         </div>
 
         <button onclick="saveQuickLog()" style="width:100%;margin-top:14px;background:var(--orange);color:#000;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Save →</button>
@@ -3533,6 +3534,7 @@ let qlCurrentTab = 'meal';
 document.getElementById('quickLogBtn').addEventListener('click', () => {
     renderQLSavedFoods();
     renderQLRecentMeals();
+    renderQLRecentRuns();
     qlSelectedMuscles = [];
     qlRenderMuscleChips();
     document.getElementById('quickLogOverlay').classList.add('open');
@@ -3700,9 +3702,53 @@ function qlLoadRecentMeal(idx) {
     document.getElementById('qlFat').value       = meal.fat      || '';
 }
 
+function renderQLRecentRuns() {
+    const container = document.getElementById('qlRecentRuns');
+    if (!container) return;
+    const allRuns = [];
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('fittrack_2')) keys.push(k);
+    }
+    keys.sort((a, b) => b.localeCompare(a));
+    for (const k of keys) {
+        try {
+            const log = JSON.parse(localStorage.getItem(k));
+            const date = k.replace('fittrack_', '');
+            (log.workouts || []).filter(w => w.type === 'run' && w.distance).reverse().forEach(w => {
+                allRuns.push({ ...w, _date: date });
+            });
+            if (allRuns.length >= 4) break;
+        } catch(_) {}
+    }
+    const runs = allRuns.slice(0, 4);
+    if (!runs.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `
+        <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Recent Runs</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            ${runs.map(r => {
+                const cal = r.caloriesBurned ? `${r.caloriesBurned} cal` : '—';
+                const pace = r.pace || '—';
+                const time = r.time || '';
+                return `<div style="background:#1a1a1a;border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:14px;font-weight:800;color:var(--orange);">${r.distance} mi</span>
+                        <span style="font-size:11px;color:var(--text-dim);">${r._date}${time ? ' · ' + time : ''}</span>
+                    </div>
+                    <div style="display:flex;gap:14px;margin-top:5px;">
+                        <span style="font-size:12px;color:var(--text-dim);">⏱ <span style="color:var(--text);">${pace}/mi</span></span>
+                        <span style="font-size:12px;color:var(--text-dim);">🔥 <span style="color:var(--text);">${cal}</span></span>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+}
+
 function switchQLTab(tab, btn) {
     if (tab === 'strength') { qlSelectedMuscles = []; qlRenderMuscleChips(); }
     if (tab === 'meal') renderQLRecentMeals();
+    if (tab === 'run')  renderQLRecentRuns();
     qlCurrentTab = tab;
     document.querySelectorAll('.ql-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
