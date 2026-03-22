@@ -21,15 +21,15 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0d0800;
-            --bg2: #181000;
-            --bg3: #241800;
+            --bg: #080808;
+            --bg2: #111111;
+            --bg3: #1a1a1a;
             --orange: #FF6B00;
             --orange-dim: #CC5500;
             --orange-glow: rgba(255, 107, 0, 0);
             --orange-glow-strong: rgba(255, 107, 0, 0);
-            --text: #fff0e0;
-            --text-dim: #8a7060;
+            --text: #f0f0f0;
+            --text-dim: #777777;
             --border: rgba(255, 107, 0, 0.3);
         }
 
@@ -49,7 +49,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 14px 18px;
-            background: linear-gradient(180deg, #2a1800 0%, var(--bg2) 100%);
+            background: var(--bg2);
             border-bottom: 1px solid rgba(255,107,0,0.4);
             box-shadow: 0 2px 20px rgba(255,107,0,0.2), 0 1px 0 rgba(255,107,0,0.12);
             flex-shrink: 0;
@@ -177,8 +177,8 @@
         }
 
         .message.ai .message-bubble {
-            background: #2a1500 !important;
-            color: #fff0e0 !important;
+            background: var(--bg3) !important;
+            color: var(--text) !important;
             border: 1px solid rgba(255,107,0,0.3) !important;
             border-bottom-left-radius: 4px;
             box-shadow: 0 0 14px rgba(255,107,0,0.12), 0 4px 16px rgba(0,0,0,0.4) !important;
@@ -288,7 +288,7 @@
         /* ── INPUT AREA ── */
         .input-area {
             padding: 12px 16px 18px;
-            background: linear-gradient(0deg, #120e00 0%, var(--bg2) 100%);
+            background: var(--bg2);
             border-top: 1px solid var(--border);
             flex-shrink: 0;
         }
@@ -301,11 +301,11 @@
 
         .text-input {
             flex: 1;
-            background: #1a1200;
+            background: #1e1e1e;
             border: 1.5px solid rgba(255,107,0,0.2);
             border-radius: 26px;
             padding: 14px 20px;
-            color: #fff0e0;
+            color: var(--text);
             font-size: 15px;
             resize: none;
             outline: none;
@@ -321,7 +321,7 @@
             box-shadow: 0 0 10px rgba(255,107,0,0.15);
         }
 
-        .text-input::placeholder { color: rgba(255,160,80,0.35); }
+        .text-input::placeholder { color: #888888; }
 
         .mic-btn {
             width: 46px;
@@ -374,7 +374,7 @@
         /* ── SUMMARY PANEL ── */
         .summary-panel {
             width: 270px;
-            background: linear-gradient(180deg, #1a1008 0%, var(--bg2) 100%);
+            background: var(--bg2);
             border-left: 1px solid var(--border);
             box-shadow: -4px 0 24px rgba(255,107,0,0.06);
             overflow-y: auto;
