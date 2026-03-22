@@ -1240,6 +1240,12 @@ async function loadFromSupabase() {
     });
 }
 
+async function deleteKeyFromSupabase(dataKey) {
+    const { data: { user } } = await _supabase.auth.getUser();
+    if (!user) return;
+    await _supabase.from('user_data').delete().eq('user_id', user.id).eq('data_key', dataKey);
+}
+
 async function syncToSupabase() {
     const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return;
@@ -2377,8 +2383,13 @@ function loadNote(dateStr) {
 }
 
 function saveNotes(dateStr, notes) {
-    if (notes && notes.length) localStorage.setItem('fittrack_note_' + dateStr, JSON.stringify(notes));
-    else localStorage.removeItem('fittrack_note_' + dateStr);
+    const key = 'fittrack_note_' + dateStr;
+    if (notes && notes.length) {
+        localStorage.setItem(key, JSON.stringify(notes));
+    } else {
+        localStorage.removeItem(key);
+        deleteKeyFromSupabase(key);
+    }
 }
 
 function openJournal() {
