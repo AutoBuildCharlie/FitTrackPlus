@@ -3310,8 +3310,8 @@ function renderWeightChart() {
             responsive: true,
             plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => items[0].label, label: (item) => `${item.raw} lbs` } } },
             scales: {
-                x: { ticks: { display: false }, grid: { display: false }, border: { display: false } },
-                y: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.04)', lineWidth: 1 }, border: { display: false } }
+                x: { ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 5, callback: (val, i) => { const d = new Date(log[i]?.date + 'T12:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } }, grid: { display: false }, border: { display: false } },
+                y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)', lineWidth: 1 }, border: { display: false } }
             }
         }
     });
@@ -3527,8 +3527,8 @@ function renderRunningChart() {
             responsive: true,
             plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => items[0].label, label: (item) => `${item.raw} mi` } } },
             scales: {
-                x: { ticks: { display: false }, grid: { display: false }, border: { display: false } },
-                y: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.04)', lineWidth: 1 }, border: { display: false } }
+                x: { ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 5, callback: (val, i) => { const d = new Date(runs[i]?.date + 'T12:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } }, grid: { display: false }, border: { display: false } },
+                y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)', lineWidth: 1 }, border: { display: false } }
             }
         }
     });
