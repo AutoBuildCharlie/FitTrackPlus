@@ -2721,6 +2721,22 @@ async function askClaude(userMessage) {
 
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
+            // Groq failed_generation: retry without forced JSON mode
+            if (e.error?.code === 'failed_generation' || (e.error?.message || '').includes('failed_generation') || (e.error?.message || '').includes('Failed to generate JSON')) {
+                const retryRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, max_tokens: 300 })
+                });
+                if (!retryRes.ok) throw new Error(`HTTP ${retryRes.status}`);
+                const retryData = await retryRes.json();
+                const retryText = retryData.choices?.[0]?.message?.content || '';
+                hideTyping();
+                if (retryText) addBubble('ai', retryText);
+                history.push({ role: 'assistant', content: retryText });
+                document.getElementById('sendBtn').disabled = false;
+                return;
+            }
             throw new Error(e.error?.message || `HTTP ${res.status}`);
         }
 
