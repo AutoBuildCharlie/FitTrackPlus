@@ -49,9 +49,10 @@
             align-items: center;
             justify-content: space-between;
             padding: 14px 18px;
-            background: var(--bg2);
-            border-bottom: 1px solid rgba(255,107,0,0.4);
-            box-shadow: 0 2px 20px rgba(255,107,0,0.2), 0 1px 0 rgba(255,107,0,0.12);
+            background: rgba(17, 17, 17, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             flex-shrink: 0;
         }
 
@@ -160,11 +161,12 @@
 
 
         .message-bubble {
-            padding: 13px 18px;
-            border-radius: 20px;
-            line-height: 1.65;
-            font-size: 15.5px;
+            padding: 14px 20px;
+            border-radius: 22px;
+            line-height: 1.7;
+            font-size: 15px;
             white-space: pre-wrap;
+            letter-spacing: 0.1px;
         }
 
         .message.user .message-bubble {
@@ -177,13 +179,13 @@
         }
 
         .message.ai .message-bubble {
-            background: var(--bg3) !important;
+            background: rgba(38, 38, 38, 0.85) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: var(--text) !important;
-            border: 1px solid rgba(255,107,0,0.3) !important;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 0 14px rgba(255,107,0,0.12), 0 4px 16px rgba(0,0,0,0.4) !important;
-            font-size: 15px;
-            line-height: 1.65;
+            border: 1px solid rgba(255, 255, 255, 0.07) !important;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
         }
 
         .message.user .message-bubble {
@@ -288,8 +290,10 @@
         /* ── INPUT AREA ── */
         .input-area {
             padding: 12px 16px 18px;
-            background: var(--bg2);
-            border-top: 1px solid var(--border);
+            background: rgba(17, 17, 17, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             flex-shrink: 0;
         }
 
