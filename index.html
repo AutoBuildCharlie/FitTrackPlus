@@ -2568,6 +2568,11 @@ const SYSTEM = `You are FitTrack AI — a personal fitness and nutrition assista
 
 STYLE: 1-3 sentences max. Direct, fun, motivating. Add a quick joke about the food or exercise. Only go longer if asked for a plan or explanation.
 
+OPINIONS & FEEDBACK — when the user asks for your opinion, reaction, or thoughts on a run, workout, or meal, use their actual data to give a specific, realistic response:
+- RUNS: Compare to their last 3 runs (pace, distance, duration). Call out if it's a new PR. Note if they're getting faster, slower, or consistent. Be honest — if it was a slow day, say so encouragingly.
+- WORKOUTS: Compare weight/reps to the last time that exercise appears in their history. Call out progressive overload (more weight or reps than last time = progress). Flag new PRs. If no history exists, react to the absolute numbers (e.g. 225lb bench = strong).
+- MEALS: Compare today's total macros so far against their daily goals. Tell them if they're on track, ahead, or behind. If they're low on protein or over on calories, mention it naturally — not as a lecture.
+
 LOG TYPES — only log new events, never re-log something already tracked:
 
 MEAL (only when user says they ate/had/consumed something):
@@ -2674,8 +2679,31 @@ async function askClaude(userMessage) {
             }
         });
 
+        // Build recent exercise history (last 14 days) for AI comparison
+        const recentExercises = {};
+        const today = new Date();
+        for (let i = 0; i < 14; i++) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const key = 'fittrack_' + localDateStr(d);
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            try {
+                const log = JSON.parse(raw);
+                (log.workouts || []).forEach(w => {
+                    if (!w.exercises || !w.exercises.length) return;
+                    const exName = w.exercises[0].toLowerCase();
+                    if (!recentExercises[exName]) recentExercises[exName] = [];
+                    recentExercises[exName].push({ date: localDateStr(d), sets: w.sets, reps: w.reps, weight: w.weight });
+                });
+            } catch(_) {}
+        }
+        const exerciseHistoryStr = Object.entries(recentExercises).map(([ex, logs]) =>
+            `${ex}: ${logs.slice(0,3).map(l => `${l.date} ${l.sets}x${l.reps}${l.weight ? '@'+l.weight+'lbs' : ''}`).join(', ')}`
+        ).join(' | ');
+
         const workoutContext = (isLift || isWeekly) && recentMuscles.length > 0
-            ? `\n\nMuscles trained this week: ${[...new Set(recentMuscles)].join(', ')}.` : '';
+            ? `\n\nMuscles trained this week: ${[...new Set(recentMuscles)].join(', ')}.${exerciseHistoryStr ? ` Recent exercise history (last 14 days): ${exerciseHistoryStr}.` : ''}` : '';
 
         const prs = loadPRs();
         const prContext = (isLift || isGoal) && Object.keys(prs).length > 0
