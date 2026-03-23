@@ -2640,13 +2640,14 @@ async function askClaude(userMessage) {
     try {
         // ── LAZY CONTEXT — detect intent first so flags are available everywhere ──
         const msg = userMessage.toLowerCase();
-        const isFood    = /eat|ate|had|meal|food|snack|calor|protein|carb|fat|macro|drink|drank|log.*food|nutrition|hunger|diet/.test(msg);
-        const isRun     = /run|ran|mile|km|jog|cardio|pace|5k|10k|marathon|sprint|treadmill/.test(msg);
-        const isLift    = /lift|workout|exercise|bench|squat|deadlift|press|curl|row|pull|push|sets|reps|weight|gym|muscle|train/.test(msg);
+        const isFood    = /eat|ate|had|meal|food|snack|calor|protein|carb|fat|macro|drink|drank|log.*food|nutrition|hunger|diet|breakfast|lunch|dinner|brunch|supper/.test(msg);
+        const isRun     = /run|ran|mile|km|jog|cardio|pace|5k|10k|marathon|sprint|treadmill|bike|biked|cycl|walk|walked|swim|swam|elliptical|jump rope|steps|stair/.test(msg);
+        const isLift    = /lift|workout|exercise|bench|squat|deadlift|press|curl|row|pull|push|sets|reps|weight|gym|muscle|train|trained|hit the gym|worked out|session|did legs|did chest|did arms|did back|did shoulders/.test(msg);
         const isWeekly  = /week|summary|this week|weekly|how.*(did|was)|total|average/.test(msg);
         const isWeight  = /body.*weight|weigh|scale|pounds|lbs|heavie|lighter|gained|lost.*weight/.test(msg);
         const isGoal    = /goal|target|want to|trying to|aim|achieve|pr|personal record|best/.test(msg);
         const isProgram = /program|plan|today.*workout|what.*train|schedule/.test(msg);
+        const isOpinion = /opinion|think|thought|how was|how did|how.?d i do|reaction|thoughts|review|rate|crush|nailed|smashed|proud|feeling about|what do you|tell me about/.test(msg);
 
         // Inject saved food library so AI knows Cal's custom foods
         const savedFoods = loadFoodLibrary();
@@ -2702,11 +2703,11 @@ async function askClaude(userMessage) {
             `${ex}: ${logs.slice(0,3).map(l => `${l.date} ${l.sets}x${l.reps}${l.weight ? '@'+l.weight+'lbs' : ''}`).join(', ')}`
         ).join(' | ');
 
-        const workoutContext = (isLift || isWeekly) && recentMuscles.length > 0
+        const workoutContext = (isLift || isWeekly || isOpinion) && recentMuscles.length > 0
             ? `\n\nMuscles trained this week: ${[...new Set(recentMuscles)].join(', ')}.${exerciseHistoryStr ? ` Recent exercise history (last 14 days): ${exerciseHistoryStr}.` : ''}` : '';
 
         const prs = loadPRs();
-        const prContext = (isLift || isGoal) && Object.keys(prs).length > 0
+        const prContext = (isLift || isGoal || isOpinion) && Object.keys(prs).length > 0
             ? `\n\nPRs: ${Object.entries(prs).map(([ex,w]) => `${ex}:${w}lbs`).join(', ')}` : '';
 
         const weightLog = loadWeightLog();
@@ -2714,7 +2715,7 @@ async function askClaude(userMessage) {
             ? `\n\nWeight log: ${[...weightLog].reverse().slice(0,5).map(e=>`${e.date}:${e.weight}lbs`).join(', ')}. Start:${weightLog[0].weight}lbs Current:${weightLog[weightLog.length-1].weight}lbs.` : '';
 
         let runContext = '', runPRContext = '';
-        if (isRun || isWeekly) {
+        if (isRun || isWeekly || isOpinion) {
             const allRuns = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
