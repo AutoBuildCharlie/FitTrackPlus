@@ -2815,7 +2815,7 @@ async function askClaude(userMessage) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'meta-llama/llama-3.3-70b-instruct:free',
+                model: 'google/gemini-2.0-flash-exp:free',
                 messages,
                 max_tokens: 300,
                 response_format: { type: 'json_object' }
@@ -2829,7 +2829,7 @@ async function askClaude(userMessage) {
                 const retryRes = await fetch('https://fittrack-proxy.aestheticcal22.workers.dev', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', messages, max_tokens: 300 })
+                    body: JSON.stringify({ model: 'google/gemini-2.0-flash-exp:free', messages, max_tokens: 300 })
                 });
                 if (!retryRes.ok) throw new Error(`HTTP ${retryRes.status}`);
                 const retryData = await retryRes.json();
