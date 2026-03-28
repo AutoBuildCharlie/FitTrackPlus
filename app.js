@@ -1855,7 +1855,7 @@ async function askClaude(userMessage) {
             },
             signal: chatCtrl.signal,
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: 'meta-llama/llama-4-scout-17b-16e-instruct',
                 messages,
                 max_tokens: 300,
                 response_format: { type: 'json_object' }
@@ -1873,7 +1873,7 @@ async function askClaude(userMessage) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     signal: retryCtrl.signal,
-                    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, max_tokens: 300 })
+                    body: JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', messages, max_tokens: 300 })
                 });
                 clearTimeout(retryTimeout);
                 if (!retryRes.ok) throw new Error(`HTTP ${retryRes.status}`);
