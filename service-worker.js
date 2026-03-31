@@ -1,10 +1,10 @@
 const CACHE = 'fittrack-v4';
 const ASSETS = [
-  '/FitTrackAI/',
-  '/FitTrackAI/index.html',
-  '/FitTrackAI/style.css',
-  '/FitTrackAI/app.js',
-  '/FitTrackAI/manifest.json'
+  '/FitTrackPlus/',
+  '/FitTrackPlus/index.html',
+  '/FitTrackPlus/style.css',
+  '/FitTrackPlus/app.js',
+  '/FitTrackPlus/manifest.json'
 ];
 
 self.addEventListener('install', e => {

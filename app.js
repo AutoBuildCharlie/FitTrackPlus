@@ -1,4 +1,29 @@
 // ================================================================
+//  DATA SHAPE REFERENCE
+// ================================================================
+// localStorage keys and their structures:
+//
+// fittrack_YYYY-MM-DD  → { workouts: [{ type, muscleGroups[], workoutTypes[], exercises[], sets, reps, weight, summary }],
+//                          meals: [{ summary, calories, protein, carbs, fat, servings, time }] }
+// fittrack_goals       → { calories, protein, carbs, fat, proteinPct, carbsPct, fatPct }
+// fittrack_profile     → { name, age, weight, heightFt, heightIn, hrMax, fitnessLevel, fitnessGoal }
+// fittrack_prs         → { [exerciseName]: maxWeight }
+// fittrack_run_prs     → { "1mile": { duration, date }, "5k": { duration, date }, ... }
+// fittrack_foods       → [{ name, calories, protein, carbs, fat }]
+// fittrack_goals_list  → [{ id, text, achieved, achievedDate, addedDate }]
+// fittrack_weight_log  → [{ date: "YYYY-MM-DD", weight }]
+// fittrack_note_YYYY-MM-DD  → [{ text, time }]
+// fittrack_water_YYYY-MM-DD → integer (glasses count)
+// fittrack_water_goal  → integer (default 8)
+// fittrack_groq_key    → string (API key or 'proxy')
+// fittrack_ai_name     → string (custom AI name)
+// fittrack_program     → { schedule: [{ dayOfWeek: "Monday", ... }] }
+//
+// Supabase table: user_data → { user_id, data_key, data_value, updated_at }
+//   (key-value store syncing all fittrack_* localStorage keys)
+// ================================================================
+
+// ================================================================
 //  SUPABASE & AUTHENTICATION
 // ================================================================
 const SUPABASE_URL = 'https://kuyhoycnldcbgmkaaejl.supabase.co';
@@ -74,7 +99,7 @@ async function signInWithGoogle() {
     try {
         await _supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: 'https://autobuildcharlie.github.io/FitTrackAI/' }
+            options: { redirectTo: 'https://autobuildcharlie.github.io/FitTrackPlus/' }
         });
     } catch (e) {
         const errEl = document.getElementById('authError');

@@ -2,7 +2,7 @@
   "name": "FitTrack Plus",
   "short_name": "FitTrack+",
   "description": "Your AI-powered personal fitness and nutrition tracker",
-  "start_url": "/FitTrackAI/",
+  "start_url": "/FitTrackPlus/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#FF6B00",
